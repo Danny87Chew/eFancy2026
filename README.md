@@ -91,3 +91,5 @@ eServices-specific states (`UserAccept`, `VendorAccept`, `PendingService`,
 - Push / email notifications.
 - React Native shell sharing the same API.
 - eGroceries / eFreshes / eServices full implementations.
+=======
+# eFancy2026

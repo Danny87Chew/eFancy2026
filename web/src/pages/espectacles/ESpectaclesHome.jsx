@@ -20,6 +20,7 @@ export default function ESpectaclesHome() {
           <li>{t('Provide eyesight data (or book an Eyesight Checkup)')}</li>
           <li>{t('Pick lens options')}</li>
           <li>{t('Confirm and pay')}</li>
+          <li>{t('Waiting order to be delivered in 2 - 3 weeks. (You can speedup the order to be fulfilled with 7 days with extra processing/shipping cost of SGD70)')}</li>
         </ol>
       </div>
     </div>

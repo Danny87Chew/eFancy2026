@@ -476,6 +476,7 @@ const resources = {
       'Provide eyesight data (or book an Eyesight Checkup)': '提供视力数据（或预约视力检查）',
       'Pick lens options': '选择镜片选项',
       'Confirm and pay': '确认并付款',
+      'Waiting order to be delivered in 2 - 3 weeks. (You can speedup the order to be fulfilled with 7 days with extra processing/shipping cost of SGD70)': '等待订单在 2 - 3 周内送达。您可以支付额外 70 新元的加急处理/运费将订单加快至 7 天完成。',
       'Make Payment': '付款',
       'An extra payment of {{amount}} is required. You\'ll be taken to the payment page after confirming.': '需额外支付 {{amount}}。确认后将跳转到支付页面。',
       'Confirm & Pay {{amount}}': '确认并支付 {{amount}}',

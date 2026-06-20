@@ -16,7 +16,7 @@ export default function LanguageSelector() {
       <span className="lang-icon" aria-hidden>🌐</span>
       <select className="lang-select" value={current} onChange={handleChange} aria-label="Select language">
         <option value="en">English</option>
-        <option value="zh">中文</option>
+        <option value="zh">中 文</option>
       </select>
     </div>
   );

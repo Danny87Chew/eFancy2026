@@ -167,7 +167,7 @@ export default function Home() {
               onClick={onTileClick}
             >
               <div className="emoji">{tile.emoji}</div>
-              <div className="title">{t(tile.title)}</div>
+              <div className="title" style={{ fontSize: 36 }}>{t(tile.title)}</div>
             </Link>
           );
         })}

@@ -7,7 +7,7 @@ export default function ESpectaclesHome() {
   return (
     <div>
       <h1 className="h1">{t('eSpectacles')}</h1>
-      <p className="muted">{t('Order prescription glasses in a few steps.')}</p>
+      <p className="muted" style={{ fontSize: 18 }}>{t('Order prescription glasses in a few steps.')}</p>
       <div className="spacer" />
       <Link to="/espectacles/frames" className="btn" style={{ display: 'block', textAlign: 'center' }}>
         {t('Start a new order')}
@@ -20,6 +20,7 @@ export default function ESpectaclesHome() {
           <li>{t('Provide eyesight data (or book an Eyesight Checkup)')}</li>
           <li>{t('Pick lens options')}</li>
           <li>{t('Confirm and pay')}</li>
+          <li>{t('Waiting order to be delivered in 2 - 3 weeks. (You can speedup the order to be fulfilled with 7 days with extra processing/shipping cost of SGD70)')}</li>
         </ol>
       </div>
     </div>

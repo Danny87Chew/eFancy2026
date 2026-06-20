@@ -49,7 +49,7 @@ export default function Me() {
         <div>
           <select value={lang} onChange={e => { const v = e.target.value; i18n.changeLanguage(v); localStorage.setItem('lang', v); }} style={{ padding: '6px 8px' }} aria-label="Language selector">
             <option value="en">English</option>
-            <option value="zh">中文</option>
+            <option value="zh">中 文</option>
           </select>
         </div>
       </div>

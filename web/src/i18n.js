@@ -465,7 +465,7 @@ const resources = {
       'System config (Super Admin)': '系统配置（超级管理员）',
       save_failed: '保存失败',
       Home: '首 页',
-      eSpectacles: 'e眼    镜',
+      eSpectacles: 'e配    镜',
       eGroceries: 'e杂    货',
       eFreshes: 'e生    鲜',
       eServices: 'e服    务',

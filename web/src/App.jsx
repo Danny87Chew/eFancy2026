@@ -158,6 +158,7 @@ export default function App() {
           <Route path="/espectacles/manual-eyesight/:id" element={<Protected><ManualEyesight /></Protected>} />
           <Route path="/egroceries" element={<Protected><Placeholder title={t('eGroceries')} /></Protected>} />
           <Route path="/efreshes" element={<Protected><Placeholder title={t('eFreshes')} /></Protected>} />
+          <Route path="/flea-market" element={<Protected><Placeholder title={t('Flea Market')} /></Protected>} />
           <Route path="/eservices" element={<Protected><Placeholder title={t('eServices')} /></Protected>} />
           <Route path="/orders" element={<Protected><Orders /></Protected>} />
           <Route path="/orders/:id" element={<Protected><OrderDetail /></Protected>} />

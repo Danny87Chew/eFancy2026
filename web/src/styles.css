@@ -59,8 +59,9 @@ button { font-family: inherit; }
 .lang-picker { display: inline-flex; align-items: center; gap: 8px; }
 .lang-icon { font-size: 16px; display: inline-block; margin-left: 4px; }
 .topbar-tabs {
-  display: flex; gap: 8px; padding: 10px 12px; overflow-x: auto; scrollbar-width: none;
+  display: flex; gap: 4px; padding: 8px 10px; overflow-x: auto; scrollbar-width: none;
   flex: 1 1 auto;
+  align-items: center;
 }
 .topbar-tabs::-webkit-scrollbar { display: none; }
 .topbar-actions {
@@ -72,22 +73,29 @@ button { font-family: inherit; }
   width: auto;
   min-width: 110px;
   padding: 8px 14px;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
 }
 .tab {
   flex: 0 0 auto;
-  padding: 8px 14px;
+  min-width: 90px;
+  padding: 6px 10px;
   border-radius: 999px;
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text);
   text-decoration: none;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
-  white-space: nowrap;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
+.tab.efreshes-tab { min-width: 120px; }
 .tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
 .content {
@@ -165,7 +173,7 @@ button { font-family: inherit; }
   border: 1px solid var(--border);
 }
 .home-tile .emoji { font-size: 56px; }
-.home-tile .title { margin-top: 10px; font-weight: 600; }
+.home-tile .title { margin-top: 10px; font-weight: 600; white-space: pre-line; overflow-wrap: anywhere; }
 
 .card {
   background: var(--surface);

@@ -26,7 +26,7 @@ export const VENDOR_ROLES = [
 export const ALL_ROLES = [...PUBLIC_ROLES, ...ADMIN_ROLES];
 
 export const ROLE_LABELS = {
-  consumer: 'Consumer User',
+  consumer: 'Consumer',
   service_vendor: 'Service Vendor',
   spectacle_checkup_vendor: 'Spectacle Eyesight Checkup Vendor',
   spectacle_producer_vendor: 'Spectacle Producer Vendor',

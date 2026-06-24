@@ -231,9 +231,9 @@ router.get('/me', authRequired, (req, res) => {
   res.json({ user: enrichUser(req.user) });
 });
 
-// PATCH /api/auth/me { nickname, real_name, mobile }
+// PATCH /api/auth/me { nickname, real_name, mobile, preorder_notification_opt_in }
 router.patch('/me', authRequired, (req, res) => {
-  const { nickname, real_name, mobile } = req.body || {};
+  const { nickname, real_name, mobile, preorder_notification_opt_in } = req.body || {};
   if (mobile !== undefined && mobile !== null) {
     const m = String(mobile).trim();
     if (!isValidMobile(m)) return res.status(400).json({ error: 'invalid_mobile' });
@@ -243,8 +243,10 @@ router.patch('/me', authRequired, (req, res) => {
       db.prepare("UPDATE users SET mobile = ?, updated_at = datetime('now') WHERE id = ?").run(m, req.user.id);
     }
   }
-  db.prepare("UPDATE users SET nickname = COALESCE(?, nickname), real_name = COALESCE(?, real_name), updated_at = datetime('now') WHERE id = ?")
-    .run(nickname ?? null, real_name ?? null, req.user.id);
+  const optInValue = preorder_notification_opt_in != null ? Number(preorder_notification_opt_in) : null;
+  db.prepare(
+    "UPDATE users SET nickname = COALESCE(?, nickname), real_name = COALESCE(?, real_name), preorder_notification_opt_in = COALESCE(?, preorder_notification_opt_in), updated_at = datetime('now') WHERE id = ?"
+  ).run(nickname ?? null, real_name ?? null, optInValue, req.user.id);
   const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   res.json({ user: enrichUser(u) });
 });

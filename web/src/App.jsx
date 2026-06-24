@@ -56,7 +56,7 @@ function TopTabs({ isAdminLike, onLogout }) {
       <NavLink to="/" end className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Home')}</NavLink>
       <NavLink to="/espectacles" className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('eSpectacles')}</NavLink>
       <NavLink to="/egroceries" className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('eGroceries')}</NavLink>
-      <NavLink to="/efreshes" className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('eFreshes')}</NavLink>
+      <NavLink to="/efreshes" className={({ isActive }) => 'tab efreshes-tab' + (isActive ? ' active' : '')}>{t('eFreshes')}</NavLink>
       <NavLink to="/eservices" className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('eServices')}</NavLink>
     </nav>
   );

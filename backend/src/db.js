@@ -213,6 +213,11 @@ function init() {
     db.prepare(`UPDATE users SET updated_at = created_at WHERE updated_at IS NULL`).run();
   }
 
+  // Add preorder_notification_opt_in column to users if not present
+  if (!userCols.includes('preorder_notification_opt_in')) {
+    db.prepare(`ALTER TABLE users ADD COLUMN preorder_notification_opt_in INTEGER NOT NULL DEFAULT 0`).run();
+  }
+
   // Add extra location columns to vendor_profiles if not present
   const profileCols = db.prepare(`PRAGMA table_info(vendor_profiles)`).all().map(c => c.name);
   for (const col of ['road', 'town', 'district', 'mrt']) {

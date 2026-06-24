@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../state/AuthContext.jsx';
-import { VENDOR_ROLES } from '../roles.js';
+import { VENDOR_ROLES, ROLE_LABELS } from '../roles.js';
 import AdminVendorCreate from './admin/AdminVendorCreate.jsx';
 import PhoneInput from '../components/PhoneInput.jsx';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,9 @@ export default function Me() {
   const [nickname, setNickname] = useState(user.nickname || '');
   const [realName, setRealName] = useState(user.real_name || '');
   const [mobile, setMobile] = useState(user.mobile || '');
+  const [preorderNotificationOptIn, setPreorderNotificationOptIn] = useState(
+    user.preorder_notification_opt_in != null ? user.preorder_notification_opt_in === 1 : true
+  );
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
@@ -21,7 +24,12 @@ export default function Me() {
   const save = async () => {
     setErr('');
     try {
-      await updateProfile({ nickname, real_name: realName, mobile });
+      await updateProfile({
+        nickname,
+        real_name: realName,
+        mobile,
+        preorder_notification_opt_in: preorderNotificationOptIn ? 1 : 0,
+      });
       setMsg('Saved');
       setTimeout(() => setMsg(''), 1500);
     } catch (e) {
@@ -33,6 +41,9 @@ export default function Me() {
     setNickname(user.nickname || '');
     setRealName(user.real_name || '');
     setMobile(user.mobile || '');
+    setPreorderNotificationOptIn(
+      user.preorder_notification_opt_in != null ? user.preorder_notification_opt_in === 1 : true
+    );
     setErr('');
     setMsg('');
   };
@@ -40,22 +51,20 @@ export default function Me() {
   const isDirty =
     nickname !== (user.nickname || '') ||
     realName !== (user.real_name || '') ||
-    mobile !== (user.mobile || '');
+    mobile !== (user.mobile || '') ||
+    preorderNotificationOptIn !==
+      (user.preorder_notification_opt_in != null
+        ? user.preorder_notification_opt_in === 1
+        : true);
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 className="h1">{t('Me')}</h1>
-        <div>
-          <select value={lang} onChange={e => { const v = e.target.value; i18n.changeLanguage(v); localStorage.setItem('lang', v); }} style={{ padding: '6px 8px' }} aria-label="Language selector">
-            <option value="en">English</option>
-            <option value="zh">中 文</option>
-          </select>
-        </div>
       </div>
       <div className="card">
         <div>{t('User ID')}: <strong>{user.user_code}</strong></div>
-        <div>{t('Role')}: {user.role}</div>
+        <div>{t('Role')}: {t(ROLE_LABELS[user.role]) || user.role}</div>
       </div>
       {isVendorOwner ? (
         <AdminVendorCreate selfMode />
@@ -68,7 +77,34 @@ export default function Me() {
               <div className="label">{t('Mobile')}</div>
               <PhoneInput value={mobile} onChange={setMobile} />
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="field">
+              <div className="label" style={{ whiteSpace: 'nowrap', fontWeight: '700' }}>
+                {t('Receive fresh goods pre-order notifications')}
+              </div>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                  <input
+                    type="radio"
+                    name="preorder_notification_opt_in"
+                    value="1"
+                    checked={preorderNotificationOptIn}
+                    onChange={() => setPreorderNotificationOptIn(true)}
+                  />
+                  {t('Yes')}
+                </label>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                  <input
+                    type="radio"
+                    name="preorder_notification_opt_in"
+                    value="0"
+                    checked={!preorderNotificationOptIn}
+                    onChange={() => setPreorderNotificationOptIn(false)}
+                  />
+                  {t('No')}
+                </label>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
               <button className="btn secondary" onClick={cancel} disabled={!isDirty}>{t('Form.Reset')}</button>
               <button className="btn" onClick={save} disabled={!isDirty}>{t('Save')}</button>
             </div>

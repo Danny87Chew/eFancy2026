@@ -6,6 +6,7 @@ const DEFAULT = [
   { key: 'espectacles', emoji: '👓', title: 'eSpectacles', to: '/espectacles' },
   { key: 'egroceries', emoji: '🛍️', title: 'eGroceries', to: '/egroceries' },
   { key: 'efreshes', emoji: '🥬', title: 'eFreshes', to: '/efreshes' },
+  { key: 'eflea', emoji: '🪪', title: 'Flea Market', to: '/flea-market' },
   { key: 'eservices', emoji: '🛠️', title: 'eServices', to: '/eservices' },
 ];
 

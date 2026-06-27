@@ -24,9 +24,15 @@ function suggestThickness(eye) {
 export default function Ordering() {
   const { draft, setDraft } = useDraft();
   const { fmt } = useCurrency();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const nav = useNavigate();
   const [brands, setBrands] = useState([]);
+  const lang = i18n.language || 'en';
+  const zhTwoCharSpacing = (text) => (
+    lang.startsWith('zh') && typeof text === 'string' && /^[\u4e00-\u9fff]{2}$/.test(text)
+      ? { letterSpacing: '0.12em' }
+      : {}
+  );
   const eyesight = draft.eyesight;
   const frame = draft.frame;
   const suggested = useMemo(() => suggestThickness(eyesight), [eyesight]);
@@ -114,10 +120,10 @@ export default function Ordering() {
             <thead>
               <tr>
                 <th style={{ textAlign: 'left', fontWeight: 400, paddingBottom: 4, color: 'var(--muted)' }}></th>
-                <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 4 }}>{t('Sphere')}</th>
-                <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 4 }}>{t('Cylinder')}</th>
-                <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 4 }}>{t('Axis')}</th>
-                <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 4 }}>{t('Addition')}</th>
+                <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 4, fontSize: 15, ...zhTwoCharSpacing(t('Sphere')) }}>{t('Sphere')}</th>
+                <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 4, fontSize: 15, ...zhTwoCharSpacing(t('Cylinder')) }}>{t('Cylinder')}</th>
+                <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 4, fontSize: 15, ...zhTwoCharSpacing(t('Axis')) }}>{t('Axis')}</th>
+                <th style={{ textAlign: 'center', fontWeight: 600, paddingBottom: 4, fontSize: 15, ...zhTwoCharSpacing(t('Addition')) }}>{t('Addition')}</th>
               </tr>
             </thead>
             <tbody>
@@ -126,9 +132,11 @@ export default function Ordering() {
                 ['Right', eyesight.r_sph, eyesight.r_cyl, eyesight.r_axis, eyesight.r_add],
               ].map(([label, sph, cyl, axis, add]) => (
                 <tr key={label}>
-                  <td style={{ color: 'var(--muted)', paddingRight: 8 }}>{t(label)}</td>
+                  <td style={{ color: '#000', paddingRight: 8, fontSize: 15, fontWeight: 700, ...zhTwoCharSpacing(t(label)) }}>
+                    {t(label)}
+                  </td>
                   {[sph, cyl, axis, add].map((v, i) => (
-                    <td key={i} style={{ textAlign: 'center', fontWeight: 500 }}>
+                    <td key={i} style={{ textAlign: 'center', fontWeight: 500, fontSize: 15 }}>
                       {v != null && v !== '' ? v : '—'}
                     </td>
                   ))}
@@ -136,7 +144,7 @@ export default function Ordering() {
               ))}
             </tbody>
           </table>
-          <div style={{ marginTop: 6, fontSize: 13 }}>
+          <div style={{ marginTop: 6, fontSize: 15, fontWeight: 700, color: '#000' }}>
             {t('Pupil Distance')}: <strong>{eyesight.pd != null ? eyesight.pd : '—'}</strong>
           </div>
         </div>

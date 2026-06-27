@@ -11,8 +11,13 @@ export default function Confirmation() {
   const nav = useNavigate();
   const [brand, setBrand] = useState(null);
   const [busy, setBusy] = useState(false);
-  const { t } = useTranslation();
-  const lang = (typeof window !== 'undefined' && window.localStorage && (localStorage.getItem('lang') || (navigator && navigator.language))) || 'en';
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language || 'en';
+  const zhTwoCharSpacing = (text) => (
+    lang.startsWith('zh') && typeof text === 'string' && /^[\u4e00-\u9fff]{2}$/.test(text)
+      ? { letterSpacing: '0.12em' }
+      : {}
+  );
 
   useEffect(() => {
     if (draft.lens && draft.lens.brand_id) {
@@ -93,30 +98,32 @@ export default function Confirmation() {
           <thead>
             <tr>
               <th style={{ textAlign: 'left' }}></th>
-              <th style={{ textAlign: 'center' }}>{t('Sphere')}</th>
-              <th style={{ textAlign: 'center' }}>{t('Cylinder')}</th>
-              <th style={{ textAlign: 'center' }}>{t('Axis')}</th>
-              <th style={{ textAlign: 'center' }}>{t('Addition')}</th>
+              <th style={{ textAlign: 'center', fontSize: 15, ...zhTwoCharSpacing(t('Sphere')) }}>{t('Sphere')}</th>
+              <th style={{ textAlign: 'center', fontSize: 15, ...zhTwoCharSpacing(t('Cylinder')) }}>{t('Cylinder')}</th>
+              <th style={{ textAlign: 'center', fontSize: 15, ...zhTwoCharSpacing(t('Axis')) }}>{t('Axis')}</th>
+              <th style={{ textAlign: 'center', fontSize: 15, ...zhTwoCharSpacing(t('Addition')) }}>{t('Addition')}</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={{ textAlign: 'left' }}>{t('Left')}</td>
-              <td style={{ textAlign: 'center' }}>{eyesight.l_sph}</td>
-              <td style={{ textAlign: 'center' }}>{eyesight.l_cyl}</td>
-              <td style={{ textAlign: 'center' }}>{eyesight.l_axis}</td>
-              <td style={{ textAlign: 'center' }}>{eyesight.l_add ?? '—'}</td>
+              <td style={{ textAlign: 'left', fontSize: 15, fontWeight: 700, ...zhTwoCharSpacing(t('Left')) }}>{t('Left')}</td>
+              <td style={{ textAlign: 'center', fontSize: 15 }}>{eyesight.l_sph}</td>
+              <td style={{ textAlign: 'center', fontSize: 15 }}>{eyesight.l_cyl}</td>
+              <td style={{ textAlign: 'center', fontSize: 15 }}>{eyesight.l_axis}</td>
+              <td style={{ textAlign: 'center', fontSize: 15 }}>{eyesight.l_add ?? '—'}</td>
             </tr>
             <tr>
-              <td style={{ textAlign: 'left' }}>{t('Right')}</td>
-              <td style={{ textAlign: 'center' }}>{eyesight.r_sph}</td>
-              <td style={{ textAlign: 'center' }}>{eyesight.r_cyl}</td>
-              <td style={{ textAlign: 'center' }}>{eyesight.r_axis}</td>
-              <td style={{ textAlign: 'center' }}>{eyesight.r_add ?? '—'}</td>
+              <td style={{ textAlign: 'left', fontSize: 15, fontWeight: 700, ...zhTwoCharSpacing(t('Right')) }}>{t('Right')}</td>
+              <td style={{ textAlign: 'center', fontSize: 15 }}>{eyesight.r_sph}</td>
+              <td style={{ textAlign: 'center', fontSize: 15 }}>{eyesight.r_cyl}</td>
+              <td style={{ textAlign: 'center', fontSize: 15 }}>{eyesight.r_axis}</td>
+              <td style={{ textAlign: 'center', fontSize: 15 }}>{eyesight.r_add ?? '—'}</td>
             </tr>
           </tbody>
         </table>
-        <div style={{ marginTop: 6, color: '#000' }}>{t('Pupil Distance')}: {eyesight.pd}</div>
+        <div style={{ marginTop: 6, color: '#000', fontSize: 15, fontWeight: 700, ...zhTwoCharSpacing(t('Pupil Distance')) }}>
+          {t('Pupil Distance')}: {eyesight.pd}
+        </div>
       </div>
 
       <div className="card">

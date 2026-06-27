@@ -232,7 +232,7 @@ button { font-family: inherit; }
   width: 100%;
 }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn.secondary { background: var(--primary); color: #fff; border: none; }
+..btn.secondary { background: var(--primary); color: #fff; border: none; }
 .btn.secondary:disabled { opacity: 0.5; }
 .btn.ghost { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
 .btn.ghost:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -240,12 +240,6 @@ button { font-family: inherit; }
 .btn.success { background: #16a34a; }
 .btn-row { display: flex; gap: 8px; }
 .btn-row > * { flex: 1; }
-
-/* For Chinese locales, increase character spacing on buttons so multi-character
-   labels read with extra separation. Applies only when html lang starts with zh. */
-html[lang^="zh"] .btn, html[lang|="zh"] .btn {
-  letter-spacing: 0.5em;
-}
 
 input, select, textarea {
   width: 100%;

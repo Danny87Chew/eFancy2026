@@ -70,7 +70,7 @@ button { font-family: inherit; }
   justify-content: center;
   text-align: center;
 }
-.tab.tab-home.active { background: #ff6a00; color: #fff; border-color: #ff6a00; }
+.tab.tab-home.active { background: #ff6a00; color: #fff; border-color: #ff6a00; box-shadow: 0 0 0 4px #0a84ff80; }
 .topbar-right { 
   flex: 0 0 auto;
   padding: 10px 12px;
@@ -131,7 +131,7 @@ button { font-family: inherit; }
   text-align: center;
 }
 .tab.efreshes-tab { flex: 0 0 110px; }
-.tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.tab.active { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 0 0 4px #0a84ff80; }
 
 .content {
   flex: 1;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from './state/AuthContext.jsx';
 import { VENDOR_ROLES } from './roles.js';
@@ -43,6 +43,26 @@ function Protected({ children }) {
 
 function TopTabs({ isAdminLike, onLogout }) {
   const { t } = useTranslation();
+  const tabsRef = useRef(null);
+  const location = useLocation();
+
+  const centerTab = (el) => {
+    const container = tabsRef.current;
+    if (!container || !el) return;
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const delta = elRect.left - containerRect.left;
+    const scrollLeft = container.scrollLeft + delta - (container.clientWidth - el.offsetWidth) / 2;
+    container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    // center active tab on navigation
+    const container = tabsRef.current;
+    if (!container) return;
+    const active = container.querySelector('.tab.active');
+    if (active) centerTab(active);
+  }, [location.pathname]);
   if (isAdminLike) {
     return (
       <div className="topbar-actions">
@@ -52,13 +72,16 @@ function TopTabs({ isAdminLike, onLogout }) {
   }
 
   return (
-    <nav className="topbar-tabs">
-      <NavLink to="/" end className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Home')}</NavLink>
-      <NavLink to="/espectacles" className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('eSpectacles')}</NavLink>
-      <NavLink to="/egroceries" className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('eGroceries')}</NavLink>
-      <NavLink to="/efreshes" className={({ isActive }) => 'tab efreshes-tab' + (isActive ? ' active' : '')}>{t('eFreshes')}</NavLink>
-      <NavLink to="/eservices" className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('eServices')}</NavLink>
-    </nav>
+    <>
+      <NavLink to="/" end className={({ isActive }) => 'tab tab-home' + (isActive ? ' active' : '')}>{t('Home')}</NavLink>
+      <nav className="topbar-tabs" ref={tabsRef}>
+        <NavLink to="/espectacles" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('eSpectacles')}</NavLink>
+        <NavLink to="/egroceries" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('eGroceries')}</NavLink>
+        <NavLink to="/efreshes" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab efreshes-tab' + (isActive ? ' active' : '')}>{t('eFreshes')}</NavLink>
+        <NavLink to="/flea-market" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('e-Flea Market')}</NavLink>
+        <NavLink to="/eservices" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('eServices')}</NavLink>
+      </nav>
+    </>
   );
 }
 

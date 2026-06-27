@@ -39,14 +39,43 @@ button { font-family: inherit; }
   position: sticky; top: 0; z-index: 10;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  /* allow inner scrollable area to show and receive horizontal scroll */
+  overflow: visible;
 }
-/* topbar inner layout to allow a right-side control */
+/* topbar inner layout with fixed home, scrollable middle, fixed language */
 .topbar-inner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0;
+  min-width: 0;
+  width: 100%;
 }
-.topbar-right { padding-right: 12px; }
+.tab.tab-home {
+  flex: 0 0 auto;
+  /* 10% smaller than default .tab-home dimensions */
+  min-width: 81px; /* 90 * 0.9 */
+  padding: 7px 9px; /* ~8 * 0.9 and 10 * 0.9 */
+  margin: 7px 4px 7px 9px;
+  border-radius: 999px;
+  /* Home tab: orange background */
+  background: #ff7a00;
+  border: 1px solid #ff7a00;
+  color: #fff;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.tab.tab-home.active { background: #ff6a00; color: #fff; border-color: #ff6a00; box-shadow: 0 0 0 4px #0a84ff80; }
+.topbar-right { 
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  white-space: nowrap;
+}
 .lang-select {
   padding: 6px 8px;
   border: 1px solid var(--border);
@@ -59,9 +88,17 @@ button { font-family: inherit; }
 .lang-picker { display: inline-flex; align-items: center; gap: 8px; }
 .lang-icon { font-size: 16px; display: inline-block; margin-left: 4px; }
 .topbar-tabs {
-  display: flex; gap: 4px; padding: 8px 10px; overflow-x: auto; scrollbar-width: none;
+  display: flex; 
+  gap: 4px; 
+  padding: 8px 10px; 
+  overflow-x: auto; 
+  overflow-y: hidden;
+  scrollbar-width: none;
   flex: 1 1 auto;
   align-items: center;
+  /* allow the tab container to shrink inside a flex parent and enable touch scrolling */
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
 }
 .topbar-tabs::-webkit-scrollbar { display: none; }
 .topbar-actions {
@@ -77,8 +114,7 @@ button { font-family: inherit; }
   font-weight: 700;
 }
 .tab {
-  flex: 0 0 auto;
-  min-width: 90px;
+  flex: 0 0 110px;
   padding: 6px 10px;
   border-radius: 999px;
   background: transparent;
@@ -87,16 +123,15 @@ button { font-family: inherit; }
   text-decoration: none;
   font-size: 16px;
   font-weight: 700;
-  white-space: pre-line;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
   cursor: pointer;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
 }
-.tab.efreshes-tab { min-width: 120px; }
-.tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.tab.efreshes-tab { flex: 0 0 110px; }
+.tab.active { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 0 0 4px #0a84ff80; }
 
 .content {
   flex: 1;

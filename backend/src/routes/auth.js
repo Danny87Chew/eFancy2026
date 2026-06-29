@@ -174,9 +174,10 @@ router.post('/otp/verify', (req, res) => {
 
   if (!user) {
     const userCode = 'U' + nanoid(8).toUpperCase();
+    const preorderOptIn = newRole === 'consumer' ? 1 : 0;
     const info = db
-      .prepare('INSERT INTO users (user_code, mobile, role) VALUES (?, ?, ?)')
-      .run(userCode, mobile, newRole);
+      .prepare('INSERT INTO users (user_code, mobile, role, preorder_notification_opt_in) VALUES (?, ?, ?, ?)')
+      .run(userCode, mobile, newRole, preorderOptIn);
     user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
 
     if (isVendorRole(newRole)) {

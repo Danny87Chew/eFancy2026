@@ -217,10 +217,18 @@ function Login() {
         </>
       )}
       {sent && (
-        <label className="field">
-          {t('OTP code')}
-          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t('6-digit code')} inputMode="numeric" />
-        </label>
+        <>
+          {intent === 'register' && (
+            <div className="card" style={{ marginBottom: 12, background: '#f0f7ff', borderColor: '#3b82f6' }}>
+              <div className="label" style={{ fontSize: 11 }}>{t('User Type Being Registered')}</div>
+              <div style={{ fontSize: 14, fontWeight: 500, marginTop: 6 }}>{t(ROLE_LABELS[role])}</div>
+            </div>
+          )}
+          <label className="field">
+            {t('OTP code')}
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t('6-digit code')} inputMode="numeric" />
+          </label>
+        </>
       )}
       {hint && <div className="muted">{hint}</div>}
       {err && <div className="error">{err}</div>}

@@ -5,12 +5,23 @@ const { authRequired, requireAdmin } = require('../auth');
 const { getConfig } = require('../configStore');
 const { canTransition } = require('../orderStates');
 
+function loadOrderComments(orderId) {
+  return db.prepare(`
+    SELECT c.*, u.nickname AS author_nickname, u.real_name, u.mobile, u.role AS author_role
+    FROM order_comments c
+    LEFT JOIN users u ON u.id = c.user_id
+    WHERE c.order_id = ?
+    ORDER BY c.created_at ASC, c.id ASC
+  `).all(orderId);
+}
+
 function loadOrder(id) {
   const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(id);
   if (!o) return null;
   o.meta = o.meta_json ? JSON.parse(o.meta_json) : null;
   o.items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(id);
   o.payments = db.prepare('SELECT * FROM payments WHERE order_id = ?').all(id);
+  o.comments = loadOrderComments(id);
   return o;
 }
 
@@ -26,8 +37,44 @@ router.get('/mine', authRequired, (req, res) => {
   const rows = db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY id DESC').all(req.user.id);
   for (const r of rows) {
     r.meta = r.meta_json ? JSON.parse(r.meta_json) : null;
+    r.comments = loadOrderComments(r.id);
   }
   res.json({ orders: rows });
+});
+
+// POST /api/orders/:id/comments
+router.post('/:id/comments', authRequired, (req, res) => {
+  const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!o) return res.status(404).json({ error: 'not_found' });
+  const isOwner = o.user_id === req.user.id;
+  const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
+  if (!isOwner && !isAdmin) return res.status(403).json({ error: 'forbidden' });
+
+  const content = String(req.body?.content || '').trim();
+  if (!content) return res.status(400).json({ error: 'content_required' });
+
+  const parentIdRaw = req.body?.parent_id;
+  let parentId = null;
+  if (parentIdRaw != null && parentIdRaw !== '') {
+    parentId = Number(parentIdRaw);
+    if (!Number.isInteger(parentId) || parentId <= 0) return res.status(400).json({ error: 'invalid_parent_id' });
+    const parent = db.prepare('SELECT * FROM order_comments WHERE id = ? AND order_id = ?').get(parentId, o.id);
+    if (!parent) return res.status(400).json({ error: 'invalid_parent_comment' });
+  }
+
+  const info = db.prepare(`
+    INSERT INTO order_comments (order_id, user_id, parent_id, content)
+    VALUES (?, ?, ?, ?)
+  `).run(o.id, req.user.id, parentId, content);
+
+  const comment = db.prepare(`
+    SELECT c.*, u.nickname AS author_nickname, u.real_name, u.mobile, u.role AS author_role
+    FROM order_comments c
+    LEFT JOIN users u ON u.id = c.user_id
+    WHERE c.id = ?
+  `).get(info.lastInsertRowid);
+
+  res.json({ ok: true, comment, comments: loadOrderComments(o.id) });
 });
 
 // GET /api/orders/:id

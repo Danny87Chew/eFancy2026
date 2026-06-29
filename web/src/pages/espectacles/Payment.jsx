@@ -194,6 +194,7 @@ export default function Payment() {
   const [done, setDone] = useState(false);
   const [err, setErr] = useState('');
   const [paynow, setPaynow] = useState(null);
+  const [paynowTriggered, setPaynowTriggered] = useState(false);
   const [window, setWindow] = useState(12);
   const [cardWarn, setCardWarn] = useState(false);
 
@@ -204,6 +205,17 @@ export default function Payment() {
 
   const form = forms[method] || {};
   const formError = useMemo(() => validate(method, form, t), [method, form, t]);
+
+  useEffect(() => {
+    if (method === 'paynow') {
+      if (!paynowTriggered && order && !busy && !paynow && !formError) {
+        setPaynowTriggered(true);
+        pay();
+      }
+    } else if (paynowTriggered) {
+      setPaynowTriggered(false);
+    }
+  }, [method, order, busy, paynow, formError, paynowTriggered]);
 
   const pay = async () => {
     setErr('');
@@ -273,12 +285,12 @@ export default function Payment() {
         <div style={{ fontSize: 22, fontWeight: 700 }}>{fmt(order.total)}</div>
       </div>
       <div className="card">
-        <strong>{t('Payment method')}</strong>
+        <strong style={{ fontSize: 17 }}>{t('Payment method')}</strong>
         {METHODS.map(m => (
           <label
             key={m.key}
             className="field"
-            style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 0 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 0, fontSize: 16 }}
           >
             <input
               type="radio"
@@ -302,8 +314,8 @@ export default function Payment() {
         </div>
       </div>
       {err && <div className="error" style={{ marginBottom: 8 }}>{err}</div>}
-      <button className="btn" disabled={busy || !!formError} onClick={pay}>
-        {busy ? t('Processing…') : t('Pay now', { amount: fmt(order.total) })}
+      <button className="btn" style={{ fontSize: 19 }} disabled={busy || !!formError} onClick={pay}>
+        {busy ? t('Processing…') : t('Pay Now', { amount: fmt(order.total) })}
       </button>
 
       {cardWarn && (
@@ -339,8 +351,8 @@ export default function Payment() {
               </div>
               <div className="muted" style={{ marginBottom: 12 }}>{t('An extra payment of {{amount}} is required. You\'ll be taken to the payment page after confirming.', { amount: fmt(order.total) })}</div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                <button className="btn secondary" onClick={() => setPaynow(null)}>{t('Close')}</button>
-                <button className="btn" onClick={async () => {
+                <button className="btn secondary" style={{ fontSize: 17 }} onClick={() => setPaynow(null)}>{t('Close')}</button>
+                <button className="btn" style={{ fontSize: 17 }} onClick={async () => {
                   try {
                     setBusy(true);
                     await api(`/api/payments/${paynow.payment_id}/confirm`, { method: 'POST' });

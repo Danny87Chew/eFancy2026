@@ -241,12 +241,6 @@ button { font-family: inherit; }
 .btn-row { display: flex; gap: 8px; }
 .btn-row > * { flex: 1; }
 
-/* For Chinese locales, increase character spacing on buttons so multi-character
-   labels read with extra separation. Applies only when html lang starts with zh. */
-html[lang^="zh"] .btn, html[lang|="zh"] .btn {
-  letter-spacing: 0.5em;
-}
-
 input, select, textarea {
   width: 100%;
   padding: 10px 12px;

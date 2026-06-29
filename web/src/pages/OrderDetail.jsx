@@ -7,6 +7,7 @@ import { statusLabel, moduleLabel } from '../utils/status';
 import { useDraft } from '../state/OrderDraftContext.jsx';
 import { useCurrency } from '../state/CurrencyContext.jsx';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../state/AuthContext.jsx';
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -14,7 +15,11 @@ export default function OrderDetail() {
   const [busy, setBusy] = useState(false);
   const [changingShop, setChangingShop] = useState(false);
   const [error, setError] = useState(null);
+  const [commentInput, setCommentInput] = useState('');
+  const [replyToId, setReplyToId] = useState(null);
+  const [commentBusy, setCommentBusy] = useState(false);
   const nav = useNavigate();
+  const { user, loading } = useAuth();
   const { setDraft } = useDraft();
   const { fmt } = useCurrency();
   const { t } = useTranslation();
@@ -91,6 +96,61 @@ export default function OrderDetail() {
       }));
     } catch {}
     nav('/espectacles/ordering');
+  };
+
+  const canComment = Boolean(user && order && (user.id === order.user_id || ['admin', 'super_admin'].includes(user.role)));
+  const showCommentComposer = !loading && canComment;
+
+  const submitComment = async () => {
+    if (!commentInput.trim()) return;
+    setCommentBusy(true);
+    try {
+      await api(`/api/orders/${id}/comments`, {
+        method: 'POST',
+        body: { content: commentInput.trim(), parent_id: replyToId || null },
+      });
+      setCommentInput('');
+      setReplyToId(null);
+      refresh();
+    } catch (e) {
+      alert(e.message || t('Unable to add comment'));
+    } finally {
+      setCommentBusy(false);
+    }
+  };
+
+  const renderComments = (parentId = null, depth = 0) => {
+    const items = (order?.comments || []).filter(c => (c.parent_id || null) === parentId);
+    if (!items.length) return null;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: depth === 0 ? 8 : 6 }}>
+        {items.map(comment => {
+          const author = comment.author_nickname || comment.real_name || comment.mobile || t('Customer');
+          const createdAt = comment.created_at ? new Date(comment.created_at).toLocaleString() : '';
+          return (
+            <div key={comment.id} style={{ marginLeft: depth * 10, padding: 10, border: '1px solid var(--border)', borderRadius: 8, background: depth === 0 ? '#fafafa' : '#fff' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                <strong>{author}</strong>
+                <span className="muted" style={{ fontSize: 12 }}>{createdAt}</span>
+              </div>
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{comment.content}</div>
+              {canComment && (
+                <div style={{ marginTop: 8 }}>
+                  <button
+                    className="btn secondary"
+                    style={{ width: 'auto', padding: '4px 8px', fontSize: 13 }}
+                    onClick={() => { setReplyToId(comment.id); setCommentInput(''); }}
+                  >
+                    {t('Reply')}
+                  </button>
+                </div>
+              )}
+              {renderComments(comment.id, depth + 1)}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
@@ -178,6 +238,36 @@ export default function OrderDetail() {
       {order.modifiable && order.module === 'espectacles' && (
         <button className="btn secondary" onClick={modify}>{t('Modify (within window)')}</button>
       )}
+
+      <div className="card" style={{ marginTop: 12 }}>
+        <div className="label" style={{ fontSize: 11 }}>{t('COMMENTS')}</div>
+        {order.comments && order.comments.length > 0 ? renderComments() : <div className="muted" style={{ marginTop: 8 }}>{t('No comments yet.')}</div>}
+        {loading ? (
+          <div className="muted" style={{ marginTop: 12 }}>{t('Loading account…')}</div>
+        ) : showCommentComposer ? (
+          <div style={{ marginTop: 12 }}>
+            {replyToId ? <div className="muted" style={{ marginBottom: 6 }}>{t('Replying to a previous comment')}</div> : null}
+            <textarea
+              value={commentInput}
+              onChange={(e) => setCommentInput(e.target.value)}
+              placeholder={replyToId ? t('Write a reply') : t('Add a comment for this order')}
+              style={{ width: '100%', minHeight: 84, padding: 10, borderRadius: 8, border: '1px solid var(--border)', resize: 'vertical' }}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button className="btn" disabled={commentBusy || !commentInput.trim()} onClick={submitComment}>
+                {replyToId ? t('Post reply') : t('Add comment')}
+              </button>
+              {replyToId ? (
+                <button className="btn secondary" onClick={() => { setReplyToId(null); setCommentInput(''); }}>
+                  {t('Cancel reply')}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <div className="muted" style={{ marginTop: 12 }}>{t('Please sign in to add comments')}</div>
+        )}
+      </div>
 
       {order.items && order.items.length > 0 && (
         <div className="card" style={{ marginTop: 12 }}>

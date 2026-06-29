@@ -117,6 +117,20 @@ function init() {
     FOREIGN KEY (shop_id) REFERENCES partner_shops(id)
   );
 
+  CREATE TABLE IF NOT EXISTS order_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    parent_id INTEGER,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (parent_id) REFERENCES order_comments(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_order_comments_order ON order_comments(order_id, created_at);
+
   CREATE TABLE IF NOT EXISTS order_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_id INTEGER NOT NULL,

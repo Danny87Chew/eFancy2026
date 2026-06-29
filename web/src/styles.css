@@ -232,7 +232,7 @@ button { font-family: inherit; }
   width: 100%;
 }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-..btn.secondary { background: var(--primary); color: #fff; border: none; }
+.btn.secondary { background: var(--primary); color: #fff; border: none; }
 .btn.secondary:disabled { opacity: 0.5; }
 .btn.ghost { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
 .btn.ghost:disabled { opacity: 0.5; cursor: not-allowed; }

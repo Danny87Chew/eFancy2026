@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../state/AuthContext.jsx';
+import { api } from '../api';
 import { PUBLIC_ROLES, ROLE_LABELS } from '../roles';
 import PhoneInput, { DEFAULT_CODE } from '../components/PhoneInput.jsx';
 import LanguageSelector from '../components/LanguageSelector.jsx';
 import AdminVendorCreate from './admin/AdminVendorCreate.jsx';
+import DeliveryAddressForm from '../components/DeliveryAddressForm.jsx';
 
 const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun/PBH'];
 
@@ -56,6 +58,9 @@ function Login() {
   const [postcodeLookup, setPostcodeLookup] = useState({ loading: false, error: '' });
   const [err, setErr] = useState('');
   const [hint, setHint] = useState('');
+  const [settingUpAddress, setSettingUpAddress] = useState(false);
+  const [addressForSetup, setAddressForSetup] = useState(null);
+  const [skipAddress, setSkipAddress] = useState(false);
 
   const isVendor = role !== 'consumer';
 
@@ -114,12 +119,43 @@ function Login() {
       const info = intent === 'register' && isVendor ? vendorInfo : undefined;
       const d = await verifyOtp(mobile, code, intent, intent === 'register' ? role : undefined, info);
       const effectiveRole = d.vendor_context?.role || d.user?.role;
+      
+      // For consumer registration, show address setup step
+      if (intent === 'register' && role === 'consumer') {
+        setAddressForSetup(d);
+        setSettingUpAddress(true);
+        setSent(false);
+        return;
+      }
+      
       let dest = '/';
       if (effectiveRole === 'spectacle_producer_vendor') dest = '/vendor/manufacture';
       else if (effectiveRole === 'spectacle_checkup_vendor') dest = '/vendor/checkup';
       nav(dest);
     } catch (e) {
       setErr(errorMessage(e.message) || 'Invalid or expired code');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAddressSetup = async (addressData) => {
+    setErr('');
+    setBusy(true);
+    try {
+      await api('/api/auth/delivery-addresses', {
+        method: 'POST',
+        body: { ...addressData, is_default: 1 },
+      });
+      
+      // Address saved successfully, redirect to home
+      const effectiveRole = addressForSetup.vendor_context?.role || addressForSetup.user?.role;
+      let dest = '/';
+      if (effectiveRole === 'spectacle_producer_vendor') dest = '/vendor/manufacture';
+      else if (effectiveRole === 'spectacle_checkup_vendor') dest = '/vendor/checkup';
+      nav(dest);
+    } catch (e) {
+      setErr(e?.data?.error || e.message || 'Failed to save address');
     } finally {
       setBusy(false);
     }
@@ -170,15 +206,55 @@ function Login() {
 
   return (
     <div style={{ paddingTop: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {settingUpAddress ? (
         <div>
-          <h1 className="h1" style={{ margin: 0 }}>{t('Welcome to eFancy')}</h1>
-          <p className="muted" style={{ marginTop: 6 }}>{t('Sign in or register with your mobile number')}</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <h1 className="h1" style={{ margin: 0 }}>{t('Add Your Delivery Address')}</h1>
+              <p className="muted" style={{ marginTop: 6 }}>{t('Complete your registration by adding at least one delivery address')}</p>
+            </div>
+            <div style={{ marginLeft: 12 }}>
+              <LanguageSelector />
+            </div>
+          </div>
+          <div className="spacer" />
+          <DeliveryAddressForm
+            onSubmit={handleAddressSetup}
+            onCancel={() => {
+              if (skipAddress) {
+                nav('/');
+              } else {
+                setSettingUpAddress(false);
+                setSent(true);
+                setSkipAddress(false);
+              }
+            }}
+            isLoading={busy}
+          />
+          <div style={{ marginTop: 16, textAlign: 'center' }}>
+            <button
+              className="btn secondary"
+              onClick={() => {
+                setSkipAddress(true);
+                nav('/');
+              }}
+              disabled={busy}
+            >
+              {t('Skip for now')}
+            </button>
+          </div>
         </div>
-        <div style={{ marginLeft: 12 }}>
-          <LanguageSelector />
-        </div>
-      </div>
+      ) : (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <h1 className="h1" style={{ margin: 0 }}>{t('Welcome to eFancy')}</h1>
+              <p className="muted" style={{ marginTop: 6 }}>{t('Sign in or register with your mobile number')}</p>
+            </div>
+            <div style={{ marginLeft: 12 }}>
+              <LanguageSelector />
+            </div>
+          </div>
       <div className="spacer" />
       <PhoneInput label={t('Mobile (with country code)')} value={mobile} onChange={setMobile} />
       {pickingRole && !sent && (
@@ -261,6 +337,8 @@ function Login() {
           <button className="btn secondary" style={{ width: '50%', margin: '0 auto' }} onClick={() => { setSent(false); setCode(''); setHint(''); setErr(''); }}>
             {t('Not Me, Change the Number')}
           </button>
+        </div>
+      )}
         </div>
       )}
     </div>

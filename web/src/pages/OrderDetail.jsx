@@ -91,6 +91,7 @@ export default function OrderDetail() {
         eyesight: order.meta?.eyesight || null,
         lens: order.meta?.lens || null,
         eyesightMode: 'have',
+        delivery_address_id: order.delivery_address_id || null,
         modifyOrderId: order.id,
         originalTotal: Number(order.total),
       }));
@@ -99,6 +100,7 @@ export default function OrderDetail() {
   };
 
   const canComment = Boolean(user && order && (user.id === order.user_id || ['admin', 'super_admin'].includes(user.role)));
+  const canReply = canComment;
   const showCommentComposer = !loading && canComment;
 
   const submitComment = async () => {
@@ -119,6 +121,31 @@ export default function OrderDetail() {
     }
   };
 
+  const handleReplyClick = (event, commentId) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!canReply) return;
+    setReplyToId(commentId);
+    setCommentInput('');
+  };
+
+  const handleSubmitComment = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    submitComment();
+  };
+
+  const handleCancelReply = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setReplyToId(null);
+    setCommentInput('');
+  };
+
+  const stopComposerPropagation = (event) => {
+    event.stopPropagation();
+  };
+
   const renderComments = (parentId = null, depth = 0) => {
     const items = (order?.comments || []).filter(c => (c.parent_id || null) === parentId);
     if (!items.length) return null;
@@ -135,14 +162,50 @@ export default function OrderDetail() {
               </div>
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{comment.content}</div>
               {canComment && (
-                <div style={{ marginTop: 8 }}>
+                <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   <button
+                    type="button"
                     className="btn secondary"
                     style={{ width: 'auto', padding: '4px 8px', fontSize: 13 }}
-                    onClick={() => { setReplyToId(comment.id); setCommentInput(''); }}
+                    disabled={!canReply}
+                    onClick={(event) => handleReplyClick(event, comment.id)}
                   >
                     {t('Reply')}
                   </button>
+                  <button
+                    type="button"
+                    className="btn secondary"
+                    style={{ width: 'auto', padding: '4px 8px', fontSize: 13 }}
+                    disabled={!canReply || replyToId !== comment.id || commentBusy || !commentInput.trim()}
+                    onClick={handleSubmitComment}
+                  >
+                    {t('Submit')}
+                  </button>
+                </div>
+              )}
+              {replyToId === comment.id && (
+                <div
+                  style={{ marginTop: 8 }}
+                  onClick={stopComposerPropagation}
+                  onMouseDown={stopComposerPropagation}
+                  onTouchStart={stopComposerPropagation}
+                  onFocus={stopComposerPropagation}
+                >
+                  <textarea
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    onClick={stopComposerPropagation}
+                    onMouseDown={stopComposerPropagation}
+                    onTouchStart={stopComposerPropagation}
+                    onFocus={stopComposerPropagation}
+                    placeholder={t('Write a reply')}
+                    style={{ width: '100%', minHeight: 84, padding: 10, borderRadius: 8, border: '1px solid var(--border)', resize: 'vertical' }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button type="button" className="btn secondary" onClick={handleCancelReply}>
+                      {t('Cancel reply')}
+                    </button>
+                  </div>
                 </div>
               )}
               {renderComments(comment.id, depth + 1)}
@@ -194,6 +257,26 @@ export default function OrderDetail() {
         {order.paid_at && <div className="muted">{t('Paid')}: {order.paid_at}</div>}
         {order.finalised_at && <div className="muted">{t('Finalised')}: {order.finalised_at}</div>}
         {order.cancelled_at && <div className="muted">{t('Cancelled')}: {order.cancelled_at}</div>}
+        {order.delivery_address && (
+          <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: '#f8f9ff', border: '1px solid var(--border)' }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>{t('Delivery Address')}</div>
+            {order.delivery_address.label && (
+              <div style={{ marginBottom: 6, fontSize: 14, color: '#333' }}>{order.delivery_address.label}</div>
+            )}
+            <div style={{ marginBottom: 4 }}>
+              {order.delivery_address.recipient_name || t('Unknown recipient')}
+              {order.delivery_address.recipient_phone ? ` · ${order.delivery_address.recipient_phone}` : ''}
+            </div>
+            <div>{order.delivery_address.address || t('Address not available')}</div>
+            {(order.delivery_address.city || order.delivery_address.state || order.delivery_address.postal_code) && (
+              <div style={{ color: '#555', marginTop: 4 }}>
+                {order.delivery_address.city ? `${order.delivery_address.city}` : ''}
+                {order.delivery_address.state ? ` ${order.delivery_address.state}` : ''}
+                {order.delivery_address.postal_code ? ` ${order.delivery_address.postal_code}` : ''}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {order.meta && (localizeMeta(order.meta, 'frame_name') || order.meta.frame_name) && (
@@ -245,25 +328,33 @@ export default function OrderDetail() {
         {loading ? (
           <div className="muted" style={{ marginTop: 12 }}>{t('Loading account…')}</div>
         ) : showCommentComposer ? (
-          <div style={{ marginTop: 12 }}>
-            {replyToId ? <div className="muted" style={{ marginBottom: 6 }}>{t('Replying to a previous comment')}</div> : null}
-            <textarea
-              value={commentInput}
-              onChange={(e) => setCommentInput(e.target.value)}
-              placeholder={replyToId ? t('Write a reply') : t('Add a comment for this order')}
-              style={{ width: '100%', minHeight: 84, padding: 10, borderRadius: 8, border: '1px solid var(--border)', resize: 'vertical' }}
-            />
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button className="btn" disabled={commentBusy || !commentInput.trim()} onClick={submitComment}>
-                {replyToId ? t('Post reply') : t('Add comment')}
-              </button>
-              {replyToId ? (
-                <button className="btn secondary" onClick={() => { setReplyToId(null); setCommentInput(''); }}>
-                  {t('Cancel reply')}
+          !replyToId ? (
+            <div
+              style={{ marginTop: 12 }}
+              onClick={stopComposerPropagation}
+              onMouseDown={stopComposerPropagation}
+              onTouchStart={stopComposerPropagation}
+              onFocus={stopComposerPropagation}
+            >
+              <textarea
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                onClick={stopComposerPropagation}
+                onMouseDown={stopComposerPropagation}
+                onTouchStart={stopComposerPropagation}
+                onFocus={stopComposerPropagation}
+                placeholder={t('Add a comment for this order')}
+                style={{ width: '100%', minHeight: 84, padding: 10, borderRadius: 8, border: '1px solid var(--border)', resize: 'vertical' }}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button type="button" className="btn" disabled={commentBusy || !commentInput.trim()} onClick={handleSubmitComment}>
+                  {t('Add comment')}
                 </button>
-              ) : null}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="muted" style={{ marginTop: 12 }}>{t('Replying to a previous comment')}</div>
+          )
         ) : (
           <div className="muted" style={{ marginTop: 12 }}>{t('Please sign in to add comments')}</div>
         )}

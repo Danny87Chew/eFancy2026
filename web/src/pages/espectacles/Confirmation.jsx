@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { useDraft } from '../../state/OrderDraftContext.jsx';
 import { useCurrency } from '../../state/CurrencyContext.jsx';
+import DeliveryAddressesList from '../../components/DeliveryAddressesList.jsx';
+import DeliveryAddressForm from '../../components/DeliveryAddressForm.jsx';
 import { useTranslation } from 'react-i18next';
 
 export default function Confirmation() {
@@ -11,6 +13,11 @@ export default function Confirmation() {
   const nav = useNavigate();
   const [brand, setBrand] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [deliveryAddresses, setDeliveryAddresses] = useState([]);
+  const [loadingAddresses, setLoadingAddresses] = useState(true);
+  const [selectedAddressId, setSelectedAddressId] = useState(draft.delivery_address_id || null);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [addressErr, setAddressErr] = useState('');
   const { t, i18n } = useTranslation();
   const lang = i18n.language || 'en';
   const zhTwoCharSpacing = (text) => (
@@ -23,7 +30,49 @@ export default function Confirmation() {
     if (draft.lens && draft.lens.brand_id) {
       api('/api/lens-brands').then(d => setBrand(d.brands.find(b => b.id === draft.lens.brand_id) || null));
     }
+    // Load delivery addresses
+    fetchDeliveryAddresses();
   }, [draft.lens]);
+
+  const fetchDeliveryAddresses = async () => {
+    try {
+      setLoadingAddresses(true);
+      const result = await api('/api/auth/delivery-addresses');
+      setDeliveryAddresses(result.addresses || []);
+      // Prefer a previously selected order address for modifications.
+      const selectedFromDraft = draft.delivery_address_id ? (result.addresses || []).find(a => a.id === draft.delivery_address_id) : null;
+      if (selectedFromDraft) {
+        setSelectedAddressId(selectedFromDraft.id);
+      } else {
+        const defaultAddr = (result.addresses || []).find(a => a.is_default === 1);
+        if (defaultAddr) {
+          setSelectedAddressId(defaultAddr.id);
+        } else if (result.addresses && result.addresses.length > 0) {
+          setSelectedAddressId(result.addresses[0].id);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load delivery addresses:', e);
+      setAddressErr('Failed to load addresses');
+    } finally {
+      setLoadingAddresses(false);
+    }
+  };
+
+  const handleAddressAdded = async (addressData) => {
+    try {
+      const result = await api('/api/auth/delivery-addresses', {
+        method: 'POST',
+        body: addressData,
+      });
+      setDeliveryAddresses([...deliveryAddresses, result.address]);
+      setSelectedAddressId(result.address.id);
+      setShowAddressForm(false);
+      setAddressErr('');
+    } catch (e) {
+      setAddressErr(e?.data?.error || 'Failed to save address');
+    }
+  };
 
   if (!draft.frame || !draft.eyesight || !draft.lens) {
     return <div>{t('Incomplete order.')} <button className="btn" onClick={() => nav('/espectacles/frames')}>{t('Restart')}</button></div>;
@@ -34,10 +83,14 @@ export default function Confirmation() {
   const diff = isModify ? Math.round(((total || 0) - (originalTotal || 0)) * 100) / 100 : 0;
 
   const makePayment = async () => {
+    if (!isModify && !selectedAddressId) {
+      setAddressErr(t('Please select a delivery address'));
+      return;
+    }
     setBusy(true);
     try {
       if (isModify) {
-        const body = { frame_id: frame.id, eyesight, lens, total, base_total: baseTotal, promo_total: promoTotal, frame_base_price: frame_base_price, frame_promo_price: frame_promo_price };
+        const body = { frame_id: frame.id, eyesight, lens, total, base_total: baseTotal, promo_total: promoTotal, frame_base_price: frame_base_price, frame_promo_price: frame_promo_price, delivery_address_id: selectedAddressId };
         const r = await api(`/api/orders/${modifyOrderId}/spectacles`, { method: 'PATCH', body });
         setDraft({ modifyOrderId: null, originalTotal: null });
         if (r.supplement_order_id) {
@@ -48,7 +101,7 @@ export default function Confirmation() {
           nav('/orders');
         }
       } else {
-        const body = { frame_id: frame.id, eyesight, lens, total, base_total: baseTotal, promo_total: promoTotal, frame_base_price: frame_base_price, frame_promo_price: frame_promo_price };
+        const body = { frame_id: frame.id, eyesight, lens, total, base_total: baseTotal, promo_total: promoTotal, frame_base_price: frame_base_price, frame_promo_price: frame_promo_price, delivery_address_id: selectedAddressId };
         if (draft.checkupOrderId) body.checkup_order_id = draft.checkupOrderId;
         const r = await api('/api/orders/spectacles', { method: 'POST', body });
         nav(`/espectacles/pay/${r.order.id}`);
@@ -136,6 +189,46 @@ export default function Confirmation() {
           <li>{t('Progressive')}: {lens.progressive ? t('Yes') : t('No')}</li>
         </ul>
       </div>
+
+      {!isModify && (
+        <div>
+          <h3 style={{ margin: '16px 0 8px' }}>{t('Delivery Address')}</h3>
+          {addressErr && <div className="error" style={{ marginBottom: 12 }}>{addressErr}</div>}
+          
+          {showAddressForm ? (
+            <DeliveryAddressForm
+              onSubmit={handleAddressAdded}
+              onCancel={() => setShowAddressForm(false)}
+              isLoading={busy}
+            />
+          ) : loadingAddresses ? (
+            <div className="card muted">{t('Loading addresses...')}</div>
+          ) : deliveryAddresses.length === 0 ? (
+            <div className="card">
+              <p className="muted">{t('No delivery addresses found. Please add one to continue.')}</p>
+              <button className="btn" onClick={() => setShowAddressForm(true)}>
+                {t('Add Delivery Address')}
+              </button>
+            </div>
+          ) : (
+            <div>
+              <DeliveryAddressesList
+                addresses={deliveryAddresses}
+                selectable={true}
+                onSelect={setSelectedAddressId}
+                selectedId={selectedAddressId}
+              />
+              <button
+                className="btn secondary"
+                onClick={() => setShowAddressForm(true)}
+                style={{ marginTop: 12 }}
+              >
+                {t('Add Another Address')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="card">
         {isModify && (

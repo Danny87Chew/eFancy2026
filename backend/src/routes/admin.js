@@ -452,11 +452,17 @@ router.patch('/users/:id', authRequired, requireRole('super_admin'), (req, res) 
 
 // GET /api/admin/orders
 router.get('/orders', authRequired, requireAdmin, (req, res) => {
-  const rows = db.prepare('SELECT * FROM orders ORDER BY id DESC LIMIT 200').all();
+  const rows = db.prepare(
+    `SELECT o.*,
+       (SELECT COUNT(*) FROM order_comments c WHERE c.order_id = o.id) AS comments_count
+     FROM orders o
+     ORDER BY o.id DESC LIMIT 200`
+  ).all();
   for (const r of rows) {
     r.meta = r.meta_json ? JSON.parse(r.meta_json) : null;
     r.items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(r.id);
     r.payments = db.prepare('SELECT * FROM payments WHERE order_id = ?').all(r.id);
+    r.has_opening_comments = Number(r.comments_count || 0) > 0;
   }
   res.json({ orders: rows });
 });

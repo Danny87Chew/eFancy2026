@@ -22,6 +22,9 @@ function loadOrder(id) {
   o.items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(id);
   o.payments = db.prepare('SELECT * FROM payments WHERE order_id = ?').all(id);
   o.comments = loadOrderComments(id);
+  if (o.delivery_address_id != null) {
+    o.delivery_address = db.prepare('SELECT * FROM delivery_addresses WHERE id = ?').get(o.delivery_address_id) || { id: o.delivery_address_id };
+  }
   return o;
 }
 
@@ -38,6 +41,9 @@ router.get('/mine', authRequired, (req, res) => {
   for (const r of rows) {
     r.meta = r.meta_json ? JSON.parse(r.meta_json) : null;
     r.comments = loadOrderComments(r.id);
+    if (r.delivery_address_id != null) {
+      r.delivery_address = db.prepare('SELECT * FROM delivery_addresses WHERE id = ?').get(r.delivery_address_id) || { id: r.delivery_address_id };
+    }
   }
   res.json({ orders: rows });
 });
@@ -156,13 +162,20 @@ router.get('/eyesight/latest', authRequired, (req, res) => {
   res.json({ record: row || null });
 });
 
-// POST /api/orders/spectacles  { frame_id, eyesight, lens: { thickness, blueLight, photochromic, progressive, brand_id }, total, base_total, promo_total, frame_base_price, frame_promo_price }
+// POST /api/orders/spectacles  { frame_id, eyesight, lens: { thickness, blueLight, photochromic, progressive, brand_id }, total, base_total, promo_total, frame_base_price, frame_promo_price, delivery_address_id }
 router.post('/spectacles', authRequired, (req, res) => {
-  const { frame_id, eyesight, lens, total, base_total, promo_total, frame_base_price, frame_promo_price, checkup_order_id } = req.body || {};
+  const { frame_id, eyesight, lens, total, base_total, promo_total, frame_base_price, frame_promo_price, checkup_order_id, delivery_address_id } = req.body || {};
   const frame = db.prepare('SELECT * FROM spectacle_frames WHERE id = ? AND active = 1').get(frame_id);
   if (!frame) return res.status(400).json({ error: 'invalid_frame' });
   if (!eyesight || typeof eyesight.pd !== 'number') return res.status(400).json({ error: 'invalid_eyesight' });
   if (!lens || !lens.thickness) return res.status(400).json({ error: 'invalid_lens' });
+
+  // Validate delivery address if provided
+  let deliveryAddr = null;
+  if (delivery_address_id) {
+    deliveryAddr = db.prepare('SELECT * FROM delivery_addresses WHERE id = ? AND user_id = ?').get(delivery_address_id, req.user.id);
+    if (!deliveryAddr) return res.status(400).json({ error: 'invalid_delivery_address' });
+  }
 
   // Validate checkup order if provided
   let checkupOrder = null;
@@ -195,10 +208,10 @@ router.post('/spectacles', authRequired, (req, res) => {
   if (checkup_order_id) meta.checkup_order_id = checkup_order_id;
   const info = db
     .prepare(
-      `INSERT INTO orders (order_code, user_id, module, status, total, meta_json)
-       VALUES (?, ?, 'espectacles', 'PendingForPayment', ?, ?)`
+      `INSERT INTO orders (order_code, user_id, module, status, total, meta_json, delivery_address_id)
+       VALUES (?, ?, 'espectacles', 'PendingForPayment', ?, ?, ?)`
     )
-    .run(code, req.user.id, Number(finalTotal) || 0, JSON.stringify(meta));
+    .run(code, req.user.id, Number(finalTotal) || 0, JSON.stringify(meta), delivery_address_id || null);
   const oid = info.lastInsertRowid;
 
   // Insert frame item using chosen frame unit price
@@ -239,8 +252,28 @@ router.patch('/:id/spectacles', authRequired, (req, res) => {
   if (o.status !== 'PendingForPayment' && !isPaid)
     return res.status(400).json({ error: 'not_modifiable' });
 
-  const { frame_id, eyesight, lens, total } = req.body || {};
+  const { frame_id, eyesight, lens, total, delivery_address_id } = req.body || {};
   const meta = o.meta_json ? JSON.parse(o.meta_json) : {};
+  if (frame_id) {
+    const frame = db.prepare('SELECT * FROM spectacle_frames WHERE id = ?').get(frame_id);
+    if (!frame) return res.status(400).json({ error: 'invalid_frame' });
+    meta.frame_id = frame.id;
+    meta.frame_name = frame.name;
+    if (frame.name_zh) meta.frame_name_zh = frame.name_zh;
+  }
+  if (eyesight) meta.eyesight = eyesight;
+  if (lens) meta.lens = lens;
+
+  let newDeliveryAddressId = o.delivery_address_id;
+  if (req.body && Object.prototype.hasOwnProperty.call(req.body, 'delivery_address_id')) {
+    if (delivery_address_id) {
+      const deliveryAddr = db.prepare('SELECT * FROM delivery_addresses WHERE id = ? AND user_id = ?').get(delivery_address_id, req.user.id);
+      if (!deliveryAddr) return res.status(400).json({ error: 'invalid_delivery_address' });
+      newDeliveryAddressId = delivery_address_id;
+    } else {
+      newDeliveryAddressId = null;
+    }
+  }
   if (frame_id) {
     const frame = db.prepare('SELECT * FROM spectacle_frames WHERE id = ?').get(frame_id);
     if (!frame) return res.status(400).json({ error: 'invalid_frame' });
@@ -255,8 +288,8 @@ router.patch('/:id/spectacles', authRequired, (req, res) => {
   const promo_total = req.body && req.body.promo_total != null ? Number(req.body.promo_total) : null;
   const newTotal = (promo_total != null) ? promo_total : (total != null ? Number(total) : o.total);
   db.prepare(
-    `UPDATE orders SET meta_json = ?, total = ?, updated_at = datetime('now') WHERE id = ?`
-  ).run(JSON.stringify(meta), newTotal, o.id);
+    `UPDATE orders SET meta_json = ?, total = ?, delivery_address_id = ?, updated_at = datetime('now') WHERE id = ?`
+  ).run(JSON.stringify(meta), newTotal, newDeliveryAddressId, o.id);
 
   // For paid orders: compute diff and create refund or supplement payment
   let diff = 0;

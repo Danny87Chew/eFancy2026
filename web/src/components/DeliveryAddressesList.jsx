@@ -145,7 +145,7 @@ export default function DeliveryAddressesList({ addresses = [], onUpdate, onDele
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <label
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: '#666' }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: '#666', whiteSpace: 'nowrap' }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <input
@@ -155,7 +155,7 @@ export default function DeliveryAddressesList({ addresses = [], onUpdate, onDele
                       onChange={(e) => { e.stopPropagation(); handleSetDefault(addr.id); }}
                       aria-label={t('Set as default delivery address')}
                     />
-                    <span style={{ fontSize: 14, lineHeight: '1' }}>{t('Set to Default')}</span>
+                    <span style={{ fontSize: 15, lineHeight: '1' }}>{t('Set to Default')}</span>
                     {saving && savingId === addr.id && (
                       <span style={{ marginLeft: 8, fontSize: 12, color: '#666' }}>{t('Saving...')}</span>
                     )}

@@ -193,6 +193,26 @@ function CheckupTab() {
               <button className="btn secondary" style={{ width: 'auto', padding: '6px 12px' }} onClick={reset}>✕ {t('Form.Cancel')}</button>
             </div>
           </div>
+          {order.delivery_address && (
+            <div className="card">
+              <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>{t('Delivery Address')}</div>
+              {order.delivery_address.label && (
+                <div style={{ marginBottom: 6, fontSize: 14, color: '#333' }}>{order.delivery_address.label}</div>
+              )}
+              <div style={{ marginBottom: 4 }}>
+                {order.delivery_address.recipient_name || t('Unknown recipient')}
+                {order.delivery_address.recipient_phone ? ` · ${order.delivery_address.recipient_phone}` : ''}
+              </div>
+              <div>{order.delivery_address.address || t('Address not available')}</div>
+              {(order.delivery_address.city || order.delivery_address.state || order.delivery_address.postal_code) && (
+                <div style={{ color: '#555', marginTop: 4 }}>
+                  {order.delivery_address.city ? `${order.delivery_address.city}` : ''}
+                  {order.delivery_address.state ? ` ${order.delivery_address.state}` : ''}
+                  {order.delivery_address.postal_code ? ` ${order.delivery_address.postal_code}` : ''}
+                </div>
+              )}
+            </div>
+          )}
           <form onSubmit={handleSubmit}>
             <div className="card">
               <h3 style={{ marginTop: 0, marginBottom: 16 }}>{t('Enter Eyesight Data')}</h3>

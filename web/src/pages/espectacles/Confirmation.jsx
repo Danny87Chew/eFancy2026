@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { useDraft } from '../../state/OrderDraftContext.jsx';
 import { useCurrency } from '../../state/CurrencyContext.jsx';
-import DeliveryAddressesList from '../../components/DeliveryAddressesList.jsx';
+import DeliveryAddressSelector from '../../components/DeliveryAddressSelector.jsx';
 import DeliveryAddressForm from '../../components/DeliveryAddressForm.jsx';
 import { useTranslation } from 'react-i18next';
 
@@ -16,7 +16,6 @@ export default function Confirmation() {
   const [deliveryAddresses, setDeliveryAddresses] = useState([]);
   const [loadingAddresses, setLoadingAddresses] = useState(true);
   const [selectedAddressId, setSelectedAddressId] = useState(draft.delivery_address_id || null);
-  const [showAddressForm, setShowAddressForm] = useState(false);
   const [addressErr, setAddressErr] = useState('');
   const { t, i18n } = useTranslation();
   const lang = i18n.language || 'en';
@@ -67,11 +66,17 @@ export default function Confirmation() {
       });
       setDeliveryAddresses([...deliveryAddresses, result.address]);
       setSelectedAddressId(result.address.id);
-      setShowAddressForm(false);
       setAddressErr('');
     } catch (e) {
       setAddressErr(e?.data?.error || 'Failed to save address');
     }
+  };
+
+  const handleAddressUpdated = (updatedAddress) => {
+    // Update the address in the list
+    setDeliveryAddresses(deliveryAddresses.map(a => a.id === updatedAddress.id ? updatedAddress : a));
+    // Keep the address selected
+    setSelectedAddressId(updatedAddress.id);
   };
 
   if (!draft.frame || !draft.eyesight || !draft.lens) {
@@ -195,37 +200,16 @@ export default function Confirmation() {
           <h3 style={{ margin: '16px 0 8px' }}>{t('Delivery Address')}</h3>
           {addressErr && <div className="error" style={{ marginBottom: 12 }}>{addressErr}</div>}
           
-          {showAddressForm ? (
-            <DeliveryAddressForm
-              onSubmit={handleAddressAdded}
-              onCancel={() => setShowAddressForm(false)}
-              isLoading={busy}
-            />
-          ) : loadingAddresses ? (
+          {loadingAddresses ? (
             <div className="card muted">{t('Loading addresses...')}</div>
-          ) : deliveryAddresses.length === 0 ? (
-            <div className="card">
-              <p className="muted">{t('No delivery addresses found. Please add one to continue.')}</p>
-              <button className="btn" onClick={() => setShowAddressForm(true)}>
-                {t('Add Delivery Address')}
-              </button>
-            </div>
           ) : (
-            <div>
-              <DeliveryAddressesList
-                addresses={deliveryAddresses}
-                selectable={true}
-                onSelect={setSelectedAddressId}
-                selectedId={selectedAddressId}
-              />
-              <button
-                className="btn secondary"
-                onClick={() => setShowAddressForm(true)}
-                style={{ marginTop: 12 }}
-              >
-                {t('Add Another Address')}
-              </button>
-            </div>
+            <DeliveryAddressSelector
+              addresses={deliveryAddresses}
+              selectedId={selectedAddressId}
+              onSelect={setSelectedAddressId}
+              onAddressAdded={handleAddressAdded}
+              onAddressUpdated={handleAddressUpdated}
+            />
           )}
         </div>
       )}

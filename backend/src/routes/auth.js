@@ -227,6 +227,21 @@ router.post('/otp/verify', (req, res) => {
 
 const { authRequired } = require('../auth');
 
+function normalizeDefaultDeliveryAddress(userId) {
+  const defaults = db.prepare(
+    'SELECT id FROM delivery_addresses WHERE user_id = ? AND is_default = 1 ORDER BY updated_at DESC, id DESC'
+  ).all(userId);
+  if (defaults.length <= 1) return;
+  const keepId = defaults[0].id;
+  db.prepare('UPDATE delivery_addresses SET is_default = 0 WHERE user_id = ? AND id != ?').run(userId, keepId);
+}
+
+function normalizeBooleanFlag(value) {
+  if (value === true || value === 1 || value === '1') return true;
+  if (value === false || value === 0 || value === '0') return false;
+  return null;
+}
+
 // GET /api/auth/me
 router.get('/me', authRequired, (req, res) => {
   res.json({ user: enrichUser(req.user) });
@@ -254,6 +269,7 @@ router.patch('/me', authRequired, (req, res) => {
 
 // GET /api/auth/delivery-addresses
 router.get('/delivery-addresses', authRequired, (req, res) => {
+  normalizeDefaultDeliveryAddress(req.user.id);
   const addresses = db.prepare(`
     SELECT * FROM delivery_addresses 
     WHERE user_id = ? 
@@ -265,8 +281,9 @@ router.get('/delivery-addresses', authRequired, (req, res) => {
 // POST /api/auth/delivery-addresses
 router.post('/delivery-addresses', authRequired, (req, res) => {
   const { label, recipient_name, recipient_phone, address, postal_code, city, state, country, is_default } = req.body || {};
+  const shouldSetDefault = normalizeBooleanFlag(is_default);
   
-  if (!recipient_name || !recipient_phone || !address) {
+  if (!recipient_name || !recipient_phone || !address || !postal_code) {
     return res.status(400).json({ error: 'missing_required_fields' });
   }
 
@@ -279,15 +296,15 @@ router.post('/delivery-addresses', authRequired, (req, res) => {
     String(recipient_name).trim(),
     String(recipient_phone).trim(),
     String(address).trim(),
-    postal_code ? String(postal_code).trim() : null,
+    String(postal_code).trim(),
     city ? String(city).trim() : null,
     state ? String(state).trim() : null,
     country ? String(country).trim() : 'SG',
-    is_default ? 1 : 0
+    shouldSetDefault ? 1 : 0
   );
 
   // If this is the default, unset default from other addresses
-  if (is_default) {
+  if (shouldSetDefault) {
     db.prepare('UPDATE delivery_addresses SET is_default = 0 WHERE user_id = ? AND id != ?')
       .run(req.user.id, info.lastInsertRowid);
   }
@@ -298,6 +315,7 @@ router.post('/delivery-addresses', authRequired, (req, res) => {
 
 // GET /api/auth/delivery-addresses/:id
 router.get('/delivery-addresses/:id', authRequired, (req, res) => {
+  normalizeDefaultDeliveryAddress(req.user.id);
   const addr = db.prepare('SELECT * FROM delivery_addresses WHERE id = ?').get(req.params.id);
   if (!addr || addr.user_id !== req.user.id) {
     return res.status(404).json({ error: 'not_found' });
@@ -313,35 +331,61 @@ router.patch('/delivery-addresses/:id', authRequired, (req, res) => {
   }
 
   const { label, recipient_name, recipient_phone, address, postal_code, city, state, country, is_default } = req.body || {};
+  const shouldSetDefault = normalizeBooleanFlag(is_default);
   
-  db.prepare(`
-    UPDATE delivery_addresses 
-    SET label = COALESCE(?, label),
-        recipient_name = COALESCE(?, recipient_name),
-        recipient_phone = COALESCE(?, recipient_phone),
-        address = COALESCE(?, address),
-        postal_code = COALESCE(?, postal_code),
-        city = COALESCE(?, city),
-        state = COALESCE(?, state),
-        country = COALESCE(?, country),
-        is_default = COALESCE(?, is_default),
-        updated_at = datetime('now')
-    WHERE id = ?
-  `).run(
-    label, 
-    recipient_name ? String(recipient_name).trim() : null,
-    recipient_phone ? String(recipient_phone).trim() : null,
-    address ? String(address).trim() : null,
-    postal_code ? String(postal_code).trim() : null,
-    city ? String(city).trim() : null,
-    state ? String(state).trim() : null,
-    country ? String(country).trim() : null,
-    is_default !== undefined && is_default !== null ? (is_default ? 1 : 0) : null,
-    req.params.id
-  );
+  // Build the UPDATE statement dynamically to handle is_default explicitly
+  const updates = [];
+  const params = [];
+  
+  if (label !== undefined && label !== null) {
+    updates.push('label = ?');
+    params.push(label);
+  }
+  if (recipient_name) {
+    updates.push('recipient_name = ?');
+    params.push(String(recipient_name).trim());
+  }
+  if (recipient_phone) {
+    updates.push('recipient_phone = ?');
+    params.push(String(recipient_phone).trim());
+  }
+  if (address) {
+    updates.push('address = ?');
+    params.push(String(address).trim());
+  }
+  if (postal_code) {
+    updates.push('postal_code = ?');
+    params.push(String(postal_code).trim());
+  }
+  if (city) {
+    updates.push('city = ?');
+    params.push(String(city).trim());
+  }
+  if (state) {
+    updates.push('state = ?');
+    params.push(String(state).trim());
+  }
+  if (country) {
+    updates.push('country = ?');
+    params.push(String(country).trim());
+  }
+  if (shouldSetDefault !== null) {
+    updates.push('is_default = ?');
+    params.push(shouldSetDefault ? 1 : 0);
+  }
+  
+  if (updates.length === 0) {
+    const updated = db.prepare('SELECT * FROM delivery_addresses WHERE id = ?').get(req.params.id);
+    return res.json({ address: updated });
+  }
+  
+  updates.push('updated_at = datetime(\'now\')');
+  params.push(req.params.id);
+  
+  db.prepare(`UPDATE delivery_addresses SET ${updates.join(', ')} WHERE id = ?`).run(...params);
 
   // If this is being set as default, unset default from other addresses
-  if (is_default) {
+  if (shouldSetDefault === true) {
     db.prepare('UPDATE delivery_addresses SET is_default = 0 WHERE user_id = ? AND id != ?')
       .run(req.user.id, req.params.id);
   }

@@ -8,6 +8,7 @@ export default function DeliveryAddressesList({ addresses = [], onUpdate, onDele
   const [editing, setEditing] = useState(null);
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingId, setSavingId] = useState(null);
   const [err, setErr] = useState('');
 
   const handleAdd = async (data) => {
@@ -41,6 +42,26 @@ export default function DeliveryAddressesList({ addresses = [], onUpdate, onDele
       setErr(e?.data?.error || e.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSetDefault = async (id) => {
+    setSaving(true);
+    setSavingId(id);
+    setErr('');
+    try {
+      console.debug('Setting default address', id);
+      const result = await api(`/api/auth/delivery-addresses/${id}`, {
+        method: 'PATCH',
+        body: { is_default: 1 },
+      });
+      console.debug('Set default response', result);
+      onUpdate && onUpdate(result.address);
+    } catch (e) {
+      setErr(e?.data?.error || e.message);
+    } finally {
+      setSaving(false);
+      setSavingId(null);
     }
   };
 
@@ -106,7 +127,7 @@ export default function DeliveryAddressesList({ addresses = [], onUpdate, onDele
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     <strong>{addr.label || t('Address')}</strong>
                     {addr.is_default === 1 && (
-                      <span style={{ fontSize: 12, backgroundColor: '#e3f2fd', padding: '2px 6px', borderRadius: 4 }}>
+                      <span style={{ fontSize: 12, backgroundColor: '#2e7d32', color: '#fff', fontWeight: 700, padding: '2px 8px', borderRadius: 4 }}>
                         {t('Default')}
                       </span>
                     )}
@@ -122,24 +143,43 @@ export default function DeliveryAddressesList({ addresses = [], onUpdate, onDele
                   </div>
                 </div>
 
-                {!selectable && (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      className="btn secondary"
-                      onClick={() => setEditing(addr.id)}
-                      style={{ padding: '8px 12px' }}
-                    >
-                      {t('Edit')}
-                    </button>
-                    <button
-                      className="btn secondary danger"
-                      onClick={() => handleDelete(addr.id)}
-                      style={{ padding: '8px 12px' }}
-                    >
-                      {t('Delete')}
-                    </button>
-                  </div>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <label
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: '#666' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={addr.is_default === 1}
+                      disabled={saving}
+                      onChange={(e) => { e.stopPropagation(); handleSetDefault(addr.id); }}
+                      aria-label={t('Set as default delivery address')}
+                    />
+                    <span style={{ fontSize: 14, lineHeight: '1' }}>{t('Set to Default')}</span>
+                    {saving && savingId === addr.id && (
+                      <span style={{ marginLeft: 8, fontSize: 12, color: '#666' }}>{t('Saving...')}</span>
+                    )}
+                  </label>
+
+                  {!selectable && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        className="btn secondary"
+                        onClick={(e) => { e.stopPropagation(); setEditing(addr.id); }}
+                        style={{ padding: '8px 12px' }}
+                      >
+                        {t('Edit')}
+                      </button>
+                      <button
+                        className="btn secondary danger"
+                        onClick={(e) => { e.stopPropagation(); handleDelete(addr.id); }}
+                        style={{ padding: '8px 12px' }}
+                      >
+                        {t('Delete')}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}

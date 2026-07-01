@@ -140,6 +140,24 @@ router.patch('/:id/checkup/shop', authRequired, (req, res) => {
   res.json({ order: loadOrder(o.id) });
 });
 
+// PATCH /api/orders/:id/checkup/address  { delivery_address_id }
+router.patch('/:id/checkup/address', authRequired, (req, res) => {
+  const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!o || o.module !== 'checkup') return res.status(404).json({ error: 'not_found' });
+  if (o.user_id !== req.user.id) return res.status(403).json({ error: 'forbidden' });
+  if (o.status !== 'PendingForPayment' && o.status !== 'CheckupPaid') return res.status(400).json({ error: 'not_changeable' });
+  const { delivery_address_id } = req.body || {};
+  let newDeliveryAddressId = null;
+  if (delivery_address_id) {
+    const deliveryAddr = db.prepare('SELECT * FROM delivery_addresses WHERE id = ? AND user_id = ?').get(delivery_address_id, req.user.id);
+    if (!deliveryAddr) return res.status(400).json({ error: 'invalid_delivery_address' });
+    newDeliveryAddressId = delivery_address_id;
+  }
+  db.prepare('UPDATE orders SET delivery_address_id = ?, updated_at = datetime(\'now\') WHERE id = ?')
+    .run(newDeliveryAddressId, o.id);
+  res.json({ order: loadOrder(o.id) });
+});
+
 // POST /api/orders/:id/checkup/upload  (staff/admin) -- attaches eyesight data
 router.post('/:id/checkup/upload', authRequired, requireAdmin, (req, res) => {
   const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);

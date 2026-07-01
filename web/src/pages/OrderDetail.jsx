@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import QRImage from '../components/QRImage.jsx';
 import ChangeShopModal from '../components/ChangeShopModal.jsx';
+import DeliveryAddressSelector from '../components/DeliveryAddressSelector.jsx';
 import { statusLabel, moduleLabel } from '../utils/status';
 import { useDraft } from '../state/OrderDraftContext.jsx';
 import { useCurrency } from '../state/CurrencyContext.jsx';
@@ -18,6 +19,14 @@ export default function OrderDetail() {
   const [commentInput, setCommentInput] = useState('');
   const [replyToId, setReplyToId] = useState(null);
   const [commentBusy, setCommentBusy] = useState(false);
+  const [commentsCollapsed, setCommentsCollapsed] = useState(false);
+  const [collapsedComments, setCollapsedComments] = useState({});
+  const [deliveryAddresses, setDeliveryAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [orderDeliveryAddress, setOrderDeliveryAddress] = useState(null);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [addressErr, setAddressErr] = useState('');
+  const [savingAddress, setSavingAddress] = useState(false);
   const nav = useNavigate();
   const { user, loading } = useAuth();
   const { setDraft } = useDraft();
@@ -30,6 +39,94 @@ export default function OrderDetail() {
     if (!key) return null;
     const suff = lang && lang.startsWith('zh') ? '_zh' : `_${lang}`;
     return meta[key + suff] || meta[key] || null;
+  };
+
+  const canModifyDeliveryAddress = Boolean(
+    user && order && order.user_id === user.id && (
+      (order.module === 'espectacles' && (order.status === 'PendingForPayment' || order.modifiable)) ||
+      (order.module === 'checkup' && order.status === 'CheckupPaid')
+    )
+  );
+  const isOwner = Boolean(user && order && order.user_id === user.id);
+
+  const fetchDeliveryAddresses = async () => {
+    setAddressErr('');
+    try {
+      setLoadingAddresses(true);
+      const result = await api('/api/auth/delivery-addresses');
+      const addresses = result.addresses || [];
+      setDeliveryAddresses(addresses);
+      if (order?.delivery_address_id) {
+        setSelectedAddressId(order.delivery_address_id);
+      } else if (addresses.length > 0) {
+        const defaultAddr = addresses.find(a => a.is_default === 1);
+        setSelectedAddressId(defaultAddr ? defaultAddr.id : addresses[0].id);
+      }
+    } catch (e) {
+      setAddressErr(e?.data?.error || e.message || 'Failed to load addresses');
+    } finally {
+      setLoadingAddresses(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (isOwner) {
+      fetchDeliveryAddresses();
+    }
+  }, [isOwner, order?.delivery_address_id]);
+
+  React.useEffect(() => {
+    if (!order?.comments || !order.comments.length) return;
+    const parentIds = new Set(order.comments.filter(c => c.parent_id != null).map(c => c.parent_id));
+    setCollapsedComments(prev => {
+      const next = { ...prev };
+      parentIds.forEach(id => {
+        if (next[id] === undefined) next[id] = true;
+      });
+      return next;
+    });
+  }, [order?.comments]);
+
+  const updateOrderDeliveryAddress = async (addressId) => {
+    if (!order) return;
+    if (order.delivery_address_id === addressId) return;
+    setSavingAddress(true);
+    setAddressErr('');
+    try {
+      const route = order.module === 'checkup'
+        ? `/api/orders/${order.id}/checkup/address`
+        : `/api/orders/${order.id}/spectacles`;
+      await api(route, {
+        method: 'PATCH',
+        body: { delivery_address_id: addressId },
+      });
+      await refresh();
+    } catch (e) {
+      setAddressErr(e?.data?.error || e.message || 'Unable to update delivery address');
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
+  const handleAddressAdded = async (address) => {
+    setDeliveryAddresses(prev => [...prev, address]);
+    setSelectedAddressId(address.id);
+    setAddressErr('');
+    if (canModifyDeliveryAddress) await updateOrderDeliveryAddress(address.id);
+  };
+
+  const handleAddressUpdated = (updatedAddress) => {
+    setDeliveryAddresses(prev => prev.map(a => {
+      if (a.id === updatedAddress.id) return updatedAddress;
+      if (updatedAddress.is_default === 1) return { ...a, is_default: 0 };
+      return a;
+    }));
+    setSelectedAddressId(updatedAddress.id);
+  };
+
+  const handleSelectAddress = async (addressId) => {
+    setSelectedAddressId(addressId);
+    if (canModifyDeliveryAddress) await updateOrderDeliveryAddress(addressId);
   };
 
   const refresh = async () => {
@@ -46,6 +143,26 @@ export default function OrderDetail() {
   };
 
   useEffect(() => { refresh(); }, [id]);
+
+  React.useEffect(() => {
+    if (!order) {
+      setOrderDeliveryAddress(null);
+      return;
+    }
+    if (order.delivery_address) {
+      setOrderDeliveryAddress(order.delivery_address);
+      return;
+    }
+    if (order.delivery_address_id) {
+      api(`/api/auth/delivery-addresses/${order.delivery_address_id}`)
+        .then(d => setOrderDeliveryAddress(d.address || null))
+        .catch(() => setOrderDeliveryAddress(null));
+      return;
+    }
+    setOrderDeliveryAddress(null);
+  }, [order]);
+
+  const deliveryAddress = order?.delivery_address || orderDeliveryAddress || (order?.delivery_address_id ? { id: order.delivery_address_id } : null);
 
   const [fetchedPricing, setFetchedPricing] = useState(null);
   React.useEffect(() => {
@@ -91,6 +208,7 @@ export default function OrderDetail() {
         eyesight: order.meta?.eyesight || null,
         lens: order.meta?.lens || null,
         eyesightMode: 'have',
+        delivery_address_id: order.delivery_address_id || null,
         modifyOrderId: order.id,
         originalTotal: Number(order.total),
       }));
@@ -99,6 +217,7 @@ export default function OrderDetail() {
   };
 
   const canComment = Boolean(user && order && (user.id === order.user_id || ['admin', 'super_admin'].includes(user.role)));
+  const canReply = canComment;
   const showCommentComposer = !loading && canComment;
 
   const submitComment = async () => {
@@ -119,6 +238,34 @@ export default function OrderDetail() {
     }
   };
 
+  const handleReplyClick = (event, commentId) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!canReply) return;
+    setReplyToId(commentId);
+    setCommentInput('');
+  };
+
+  const handleSubmitComment = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    submitComment();
+  };
+
+  const handleCancelReply = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setReplyToId(null);
+    setCommentInput('');
+  };
+
+  const stopComposerPropagation = (event) => {
+    event.stopPropagation();
+  };
+
+  const toggleCommentsCollapsed = () => setCommentsCollapsed(prev => !prev);
+  const toggleCommentThread = (commentId) => setCollapsedComments(prev => ({ ...prev, [commentId]: !prev[commentId] }));
+
   const renderComments = (parentId = null, depth = 0) => {
     const items = (order?.comments || []).filter(c => (c.parent_id || null) === parentId);
     if (!items.length) return null;
@@ -127,25 +274,79 @@ export default function OrderDetail() {
         {items.map(comment => {
           const author = comment.author_nickname || comment.real_name || comment.mobile || t('Customer');
           const createdAt = comment.created_at ? new Date(comment.created_at).toLocaleString() : '';
+          const children = (order?.comments || []).filter(c => (c.parent_id || null) === comment.id);
+          const hasChildren = children.length > 0;
+          const threadCollapsed = !!collapsedComments[comment.id];
           return (
             <div key={comment.id} style={{ marginLeft: depth * 10, padding: 10, border: '1px solid var(--border)', borderRadius: 8, background: depth === 0 ? '#fafafa' : '#fff' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-                <strong>{author}</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {hasChildren && (
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      style={{ width: 'auto', minWidth: 32, padding: '4px 8px', fontSize: 13 }}
+                      onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleCommentThread(comment.id); }}
+                    >
+                      {threadCollapsed ? '+' : '−'}
+                    </button>
+                  )}
+                  <strong>{author}</strong>
+                </div>
                 <span className="muted" style={{ fontSize: 12 }}>{createdAt}</span>
               </div>
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{comment.content}</div>
               {canComment && (
-                <div style={{ marginTop: 8 }}>
+                <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   <button
+                    type="button"
                     className="btn secondary"
                     style={{ width: 'auto', padding: '4px 8px', fontSize: 13 }}
-                    onClick={() => { setReplyToId(comment.id); setCommentInput(''); }}
+                    disabled={!canReply}
+                    onClick={(event) => handleReplyClick(event, comment.id)}
                   >
                     {t('Reply')}
                   </button>
+                  <button
+                    type="button"
+                    className="btn secondary"
+                    style={{ width: 'auto', padding: '4px 8px', fontSize: 13 }}
+                    disabled={!canReply || replyToId !== comment.id || commentBusy || !commentInput.trim()}
+                    onClick={handleSubmitComment}
+                  >
+                    {t('Submit')}
+                  </button>
                 </div>
               )}
-              {renderComments(comment.id, depth + 1)}
+              {replyToId === comment.id && (
+                <div
+                  style={{ marginTop: 8 }}
+                  onClick={stopComposerPropagation}
+                  onMouseDown={stopComposerPropagation}
+                  onTouchStart={stopComposerPropagation}
+                  onFocus={stopComposerPropagation}
+                >
+                  <textarea
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    onClick={stopComposerPropagation}
+                    onMouseDown={stopComposerPropagation}
+                    onTouchStart={stopComposerPropagation}
+                    onFocus={stopComposerPropagation}
+                    placeholder={t('Write a reply')}
+                    style={{ width: '100%', minHeight: 84, padding: 10, borderRadius: 8, border: '1px solid var(--border)', resize: 'vertical' }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button type="button" className="btn secondary" onClick={handleCancelReply}>
+                      {t('Cancel reply')}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {hasChildren && !threadCollapsed && renderComments(comment.id, depth + 1)}
+              {hasChildren && threadCollapsed && (
+                <div className="muted" style={{ marginTop: 8, fontSize: 13 }}>{t('Replies folded')}</div>
+              )}
             </div>
           );
         })}
@@ -195,6 +396,47 @@ export default function OrderDetail() {
         {order.finalised_at && <div className="muted">{t('Finalised')}: {order.finalised_at}</div>}
         {order.cancelled_at && <div className="muted">{t('Cancelled')}: {order.cancelled_at}</div>}
       </div>
+      {deliveryAddress && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 22, marginBottom: 6 }}>{t('Delivery Address')}</div>
+          {deliveryAddress.label && (
+            <div style={{ marginBottom: 6, fontSize: 14, color: '#333' }}>{deliveryAddress.label}</div>
+          )}
+          <div style={{ marginBottom: 4 }}>
+            {deliveryAddress.recipient_name || t('Unknown recipient')}
+            {deliveryAddress.recipient_phone ? ` · ${deliveryAddress.recipient_phone}` : ''}
+          </div>
+          <div>{deliveryAddress.address || t('Address not available')}</div>
+          {(deliveryAddress.city || deliveryAddress.state || deliveryAddress.postal_code) && (
+            <div style={{ color: '#555', marginTop: 4 }}>
+              {deliveryAddress.city ? `${deliveryAddress.city}` : ''}
+              {deliveryAddress.state ? ` ${deliveryAddress.state}` : ''}
+              {deliveryAddress.postal_code ? ` ${deliveryAddress.postal_code}` : ''}
+            </div>
+          )}
+        </div>
+      )}
+
+      {isOwner && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <div className="label" style={{ fontSize: 14, fontWeight: 700 }}>{t('Delivery Address')}</div>
+          </div>
+          {addressErr && <div className="error" style={{ marginTop: 12 }}>{addressErr}</div>}
+          {loadingAddresses ? (
+            <div className="card muted" style={{ marginTop: 12 }}>{t('Loading addresses...')}</div>
+          ) : (
+            <DeliveryAddressSelector
+              addresses={deliveryAddresses}
+              selectedId={selectedAddressId}
+              onSelect={handleSelectAddress}
+              onAddressAdded={handleAddressAdded}
+              onAddressUpdated={handleAddressUpdated}
+              title={t('Delivery Address')}
+            />
+          )}
+        </div>
+      )}
 
       {order.meta && (localizeMeta(order.meta, 'frame_name') || order.meta.frame_name) && (
         <div className="card">
@@ -240,30 +482,50 @@ export default function OrderDetail() {
       )}
 
       <div className="card" style={{ marginTop: 12 }}>
-        <div className="label" style={{ fontSize: 11 }}>{t('COMMENTS')}</div>
-        {order.comments && order.comments.length > 0 ? renderComments() : <div className="muted" style={{ marginTop: 8 }}>{t('No comments yet.')}</div>}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <div className="label" style={{ fontSize: 14, fontWeight: 700 }}>{t('COMMENTS')}</div>
+          <button
+            type="button"
+            className="btn secondary"
+            style={{ width: 'auto', minWidth: 32, padding: '4px 8px', fontSize: 14, lineHeight: 1 }}
+            onClick={toggleCommentsCollapsed}
+          >
+            {commentsCollapsed ? '+' : '−'}
+          </button>
+        </div>
+        {commentsCollapsed ? (
+          <div className="muted" style={{ marginTop: 8 }}>{t('Comments folded')}</div>
+        ) : order.comments && order.comments.length > 0 ? renderComments() : <div className="muted" style={{ marginTop: 8 }}>{t('No comments yet.')}</div>}
         {loading ? (
           <div className="muted" style={{ marginTop: 12 }}>{t('Loading account…')}</div>
         ) : showCommentComposer ? (
-          <div style={{ marginTop: 12 }}>
-            {replyToId ? <div className="muted" style={{ marginBottom: 6 }}>{t('Replying to a previous comment')}</div> : null}
-            <textarea
-              value={commentInput}
-              onChange={(e) => setCommentInput(e.target.value)}
-              placeholder={replyToId ? t('Write a reply') : t('Add a comment for this order')}
-              style={{ width: '100%', minHeight: 84, padding: 10, borderRadius: 8, border: '1px solid var(--border)', resize: 'vertical' }}
-            />
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button className="btn" disabled={commentBusy || !commentInput.trim()} onClick={submitComment}>
-                {replyToId ? t('Post reply') : t('Add comment')}
-              </button>
-              {replyToId ? (
-                <button className="btn secondary" onClick={() => { setReplyToId(null); setCommentInput(''); }}>
-                  {t('Cancel reply')}
+          !replyToId ? (
+            <div
+              style={{ marginTop: 12 }}
+              onClick={stopComposerPropagation}
+              onMouseDown={stopComposerPropagation}
+              onTouchStart={stopComposerPropagation}
+              onFocus={stopComposerPropagation}
+            >
+              <textarea
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                onClick={stopComposerPropagation}
+                onMouseDown={stopComposerPropagation}
+                onTouchStart={stopComposerPropagation}
+                onFocus={stopComposerPropagation}
+                placeholder={t('Add a comment for this order')}
+                style={{ width: '100%', minHeight: 84, padding: 10, borderRadius: 8, border: '1px solid var(--border)', resize: 'vertical' }}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button type="button" className="btn" disabled={commentBusy || !commentInput.trim()} onClick={handleSubmitComment}>
+                  {t('Add comment')}
                 </button>
-              ) : null}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="muted" style={{ marginTop: 12 }}>{t('Replying to a previous comment')}</div>
+          )
         ) : (
           <div className="muted" style={{ marginTop: 12 }}>{t('Please sign in to add comments')}</div>
         )}

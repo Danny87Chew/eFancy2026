@@ -5,6 +5,7 @@ import { useDraft } from '../../state/OrderDraftContext.jsx';
 import { useCurrency } from '../../state/CurrencyContext.jsx';
 import { useTranslation } from 'react-i18next';
 import QRImage from '../../components/QRImage.jsx';
+import DeliveryAddressSelector from '../../components/DeliveryAddressSelector.jsx';
 
 const METHODS = [
   { key: 'card', label: 'Credit/Debit Card' },
@@ -188,6 +189,11 @@ export default function Payment() {
   const { reset } = useDraft();
   const { fmt } = useCurrency();
   const [order, setOrder] = useState(null);
+  const [deliveryAddresses, setDeliveryAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [addressErr, setAddressErr] = useState('');
+  const [savingAddress, setSavingAddress] = useState(false);
   const [method, setMethod] = useState('card');
   const [forms, setForms] = useState({});
   const [busy, setBusy] = useState(false);
@@ -203,6 +209,30 @@ export default function Payment() {
     api('/api/config/public').then(d => setWindow(d.order_modify_window_hours));
   }, [id]);
 
+  useEffect(() => {
+    const fetchDeliveryAddresses = async () => {
+      setAddressErr('');
+      setLoadingAddresses(true);
+      try {
+        const result = await api('/api/auth/delivery-addresses');
+        const addresses = result.addresses || [];
+        setDeliveryAddresses(addresses);
+        if (order?.delivery_address_id) {
+          setSelectedAddressId(order.delivery_address_id);
+        } else if (addresses.length > 0) {
+          const defaultAddr = addresses.find(a => a.is_default === 1);
+          setSelectedAddressId(defaultAddr ? defaultAddr.id : addresses[0].id);
+        }
+      } catch (e) {
+        setAddressErr(e?.data?.error || e.message || 'Failed to load delivery addresses');
+      } finally {
+        setLoadingAddresses(false);
+      }
+    };
+
+    fetchDeliveryAddresses();
+  }, [order?.delivery_address_id]);
+
   const form = forms[method] || {};
   const formError = useMemo(() => validate(method, form, t), [method, form, t]);
 
@@ -217,8 +247,57 @@ export default function Payment() {
     }
   }, [method, order, busy, paynow, formError, paynowTriggered]);
 
+  const hasDeliveryAddress = Boolean(order?.delivery_address_id);
+  const canPay = !busy && !formError && hasDeliveryAddress && !savingAddress;
+
+  const refreshOrder = async () => {
+    const d = await api(`/api/orders/${id}`);
+    setOrder(d.order);
+  };
+
+  const updateOrderDeliveryAddress = async (addressId) => {
+    if (!order) return;
+    if (order.delivery_address_id === addressId) return;
+    setSavingAddress(true);
+    setAddressErr('');
+    try {
+      await api(`/api/orders/${id}/spectacles`, {
+        method: 'PATCH',
+        body: { delivery_address_id: addressId },
+      });
+      await refreshOrder();
+    } catch (e) {
+      setAddressErr(e?.data?.error || e.message || 'Unable to update delivery address');
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
+  const handleAddressAdded = async (address) => {
+    setDeliveryAddresses(prev => [...prev, address]);
+    setSelectedAddressId(address.id);
+    setAddressErr('');
+    await updateOrderDeliveryAddress(address.id);
+  };
+
+  const handleAddressUpdated = (updatedAddress) => {
+    setDeliveryAddresses(prev => prev.map(a => a.id === updatedAddress.id ? updatedAddress : a));
+    if (selectedAddressId === updatedAddress.id) {
+      setOrder(prev => prev ? { ...prev, delivery_address: updatedAddress } : prev);
+    }
+  };
+
+  const handleSelectAddress = async (addressId) => {
+    setSelectedAddressId(addressId);
+    await updateOrderDeliveryAddress(addressId);
+  };
+
   const pay = async () => {
     setErr('');
+    if (!hasDeliveryAddress) {
+      setErr(t('Please add or select a delivery address before payment.'));
+      return;
+    }
     const v = validate(method, form, t);
     if (v) { setErr(v); return; }
     setBusy(true);
@@ -253,6 +332,26 @@ export default function Payment() {
             </>
           )}
         </div>
+        {order.delivery_address && (
+          <div className="card" style={{ marginTop: 12, padding: 12, borderRadius: 8, background: '#f8f9ff', border: '1px solid var(--border)' }}>
+            <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 6 }}>{t('Delivery Address')}</div>
+            {order.delivery_address.label && (
+              <div style={{ marginBottom: 6, fontSize: 14, color: '#333' }}>{order.delivery_address.label}</div>
+            )}
+            <div style={{ marginBottom: 4 }}>
+              {order.delivery_address.recipient_name || t('Unknown recipient')}
+              {order.delivery_address.recipient_phone ? ` · ${order.delivery_address.recipient_phone}` : ''}
+            </div>
+            <div>{order.delivery_address.address || t('Address not available')}</div>
+            {(order.delivery_address.city || order.delivery_address.state || order.delivery_address.postal_code) && (
+              <div style={{ color: '#555', marginTop: 4 }}>
+                {order.delivery_address.city ? `${order.delivery_address.city}` : ''}
+                {order.delivery_address.state ? ` ${order.delivery_address.state}` : ''}
+                {order.delivery_address.postal_code ? ` ${order.delivery_address.postal_code}` : ''}
+              </div>
+            )}
+          </div>
+        )}
         <div className="btn-row">
           <button className="btn secondary" onClick={() => nav('/orders')}>{t('Go to Orders')}</button>
           {isCheckup ? (
@@ -302,6 +401,22 @@ export default function Payment() {
           </label>
         ))}
       </div>
+      {addressErr && <div className="error" style={{ marginBottom: 12 }}>{addressErr}</div>}
+      {loadingAddresses ? (
+        <div className="card muted" style={{ marginTop: 12 }}>{t('Loading addresses...')}</div>
+      ) : (
+        <div className="card">
+          <DeliveryAddressSelector
+            addresses={deliveryAddresses}
+            selectedId={selectedAddressId}
+            onSelect={handleSelectAddress}
+            onAddressAdded={handleAddressAdded}
+            onAddressUpdated={handleAddressUpdated}
+            title={t('Delivery Address')}
+          />
+        </div>
+      )}
+      <div style={{ height: 8 }} />
       <div className="card">
         <strong>{t(activeMethod.label)} {t('details')}</strong>
         <div style={{ marginTop: 10 }}>
@@ -314,7 +429,16 @@ export default function Payment() {
         </div>
       </div>
       {err && <div className="error" style={{ marginBottom: 8 }}>{err}</div>}
-      <button className="btn" style={{ fontSize: 19 }} disabled={busy || !!formError} onClick={pay}>
+      <button
+        className="btn"
+        style={{
+          fontSize: 19,
+          opacity: canPay ? 1 : 0.5,
+          cursor: canPay ? 'pointer' : 'not-allowed',
+        }}
+        disabled={!canPay}
+        onClick={pay}
+      >
         {busy ? t('Processing…') : t('Pay Now', { amount: fmt(order.total) })}
       </button>
 

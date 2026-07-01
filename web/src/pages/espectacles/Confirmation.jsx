@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { useDraft } from '../../state/OrderDraftContext.jsx';
 import { useCurrency } from '../../state/CurrencyContext.jsx';
+import DeliveryAddressSelector from '../../components/DeliveryAddressSelector.jsx';
+import DeliveryAddressForm from '../../components/DeliveryAddressForm.jsx';
 import { useTranslation } from 'react-i18next';
 
 export default function Confirmation() {
@@ -11,6 +13,10 @@ export default function Confirmation() {
   const nav = useNavigate();
   const [brand, setBrand] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [deliveryAddresses, setDeliveryAddresses] = useState([]);
+  const [loadingAddresses, setLoadingAddresses] = useState(true);
+  const [selectedAddressId, setSelectedAddressId] = useState(draft.delivery_address_id || null);
+  const [addressErr, setAddressErr] = useState('');
   const { t, i18n } = useTranslation();
   const lang = i18n.language || 'en';
   const zhTwoCharSpacing = (text) => (
@@ -23,7 +29,55 @@ export default function Confirmation() {
     if (draft.lens && draft.lens.brand_id) {
       api('/api/lens-brands').then(d => setBrand(d.brands.find(b => b.id === draft.lens.brand_id) || null));
     }
+    // Load delivery addresses
+    fetchDeliveryAddresses();
   }, [draft.lens]);
+
+  const fetchDeliveryAddresses = async () => {
+    try {
+      setLoadingAddresses(true);
+      const result = await api('/api/auth/delivery-addresses');
+      setDeliveryAddresses(result.addresses || []);
+      // Prefer a previously selected order address for modifications.
+      const selectedFromDraft = draft.delivery_address_id ? (result.addresses || []).find(a => a.id === draft.delivery_address_id) : null;
+      if (selectedFromDraft) {
+        setSelectedAddressId(selectedFromDraft.id);
+      } else {
+        const defaultAddr = (result.addresses || []).find(a => a.is_default === 1);
+        if (defaultAddr) {
+          setSelectedAddressId(defaultAddr.id);
+        } else if (result.addresses && result.addresses.length > 0) {
+          setSelectedAddressId(result.addresses[0].id);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load delivery addresses:', e);
+      setAddressErr('Failed to load addresses');
+    } finally {
+      setLoadingAddresses(false);
+    }
+  };
+
+  const handleAddressAdded = async (addressData) => {
+    try {
+      const result = await api('/api/auth/delivery-addresses', {
+        method: 'POST',
+        body: addressData,
+      });
+      setDeliveryAddresses([...deliveryAddresses, result.address]);
+      setSelectedAddressId(result.address.id);
+      setAddressErr('');
+    } catch (e) {
+      setAddressErr(e?.data?.error || 'Failed to save address');
+    }
+  };
+
+  const handleAddressUpdated = (updatedAddress) => {
+    // Update the address in the list
+    setDeliveryAddresses(deliveryAddresses.map(a => a.id === updatedAddress.id ? updatedAddress : a));
+    // Keep the address selected
+    setSelectedAddressId(updatedAddress.id);
+  };
 
   if (!draft.frame || !draft.eyesight || !draft.lens) {
     return <div>{t('Incomplete order.')} <button className="btn" onClick={() => nav('/espectacles/frames')}>{t('Restart')}</button></div>;
@@ -34,10 +88,14 @@ export default function Confirmation() {
   const diff = isModify ? Math.round(((total || 0) - (originalTotal || 0)) * 100) / 100 : 0;
 
   const makePayment = async () => {
+    if (!isModify && !selectedAddressId) {
+      setAddressErr(t('Please select a delivery address'));
+      return;
+    }
     setBusy(true);
     try {
       if (isModify) {
-        const body = { frame_id: frame.id, eyesight, lens, total, base_total: baseTotal, promo_total: promoTotal, frame_base_price: frame_base_price, frame_promo_price: frame_promo_price };
+        const body = { frame_id: frame.id, eyesight, lens, total, base_total: baseTotal, promo_total: promoTotal, frame_base_price: frame_base_price, frame_promo_price: frame_promo_price, delivery_address_id: selectedAddressId };
         const r = await api(`/api/orders/${modifyOrderId}/spectacles`, { method: 'PATCH', body });
         setDraft({ modifyOrderId: null, originalTotal: null });
         if (r.supplement_order_id) {
@@ -48,7 +106,7 @@ export default function Confirmation() {
           nav('/orders');
         }
       } else {
-        const body = { frame_id: frame.id, eyesight, lens, total, base_total: baseTotal, promo_total: promoTotal, frame_base_price: frame_base_price, frame_promo_price: frame_promo_price };
+        const body = { frame_id: frame.id, eyesight, lens, total, base_total: baseTotal, promo_total: promoTotal, frame_base_price: frame_base_price, frame_promo_price: frame_promo_price, delivery_address_id: selectedAddressId };
         if (draft.checkupOrderId) body.checkup_order_id = draft.checkupOrderId;
         const r = await api('/api/orders/spectacles', { method: 'POST', body });
         nav(`/espectacles/pay/${r.order.id}`);
@@ -136,6 +194,25 @@ export default function Confirmation() {
           <li>{t('Progressive')}: {lens.progressive ? t('Yes') : t('No')}</li>
         </ul>
       </div>
+
+      {!isModify && (
+        <div>
+          <h3 style={{ margin: '16px 0 8px' }}>{t('Delivery Address')}</h3>
+          {addressErr && <div className="error" style={{ marginBottom: 12 }}>{addressErr}</div>}
+          
+          {loadingAddresses ? (
+            <div className="card muted">{t('Loading addresses...')}</div>
+          ) : (
+            <DeliveryAddressSelector
+              addresses={deliveryAddresses}
+              selectedId={selectedAddressId}
+              onSelect={setSelectedAddressId}
+              onAddressAdded={handleAddressAdded}
+              onAddressUpdated={handleAddressUpdated}
+            />
+          )}
+        </div>
+      )}
 
       <div className="card">
         {isModify && (

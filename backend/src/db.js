@@ -203,6 +203,24 @@ function init() {
     FOREIGN KEY (staff_user_id)  REFERENCES users(id) ON DELETE SET NULL
   );
   CREATE INDEX IF NOT EXISTS idx_vendor_staff_mobile ON vendor_staff(staff_mobile);
+
+  CREATE TABLE IF NOT EXISTS delivery_addresses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    label TEXT,                      -- e.g., "Home", "Office"
+    recipient_name TEXT NOT NULL,
+    recipient_phone TEXT NOT NULL,
+    address TEXT NOT NULL,
+    postal_code TEXT,
+    city TEXT,
+    state TEXT,
+    country TEXT NOT NULL DEFAULT 'SG',
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_delivery_addresses_user ON delivery_addresses(user_id);
   `);
 
   // Add localized name column to partner_shops
@@ -308,6 +326,12 @@ function init() {
       SELECT id FROM users WHERE mobile = vendor_staff.staff_mobile
     ) WHERE staff_user_id IS NULL
   `).run();
+
+  // Add delivery_address_id column to orders if not present
+  const orderCols2 = db.prepare(`PRAGMA table_info(orders)`).all().map(c => c.name);
+  if (!orderCols2.includes('delivery_address_id')) {
+    db.prepare(`ALTER TABLE orders ADD COLUMN delivery_address_id INTEGER REFERENCES delivery_addresses(id)`).run();
+  }
 
   // Seed default super admin (mobile 99999999 with +65 prefix)
   const superAdminMobile = '+6599999999';

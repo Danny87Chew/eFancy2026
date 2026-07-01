@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../state/AuthContext.jsx';
+import { api } from '../api.js';
 import { VENDOR_ROLES, ROLE_LABELS } from '../roles.js';
 import AdminVendorCreate from './admin/AdminVendorCreate.jsx';
 import PhoneInput from '../components/PhoneInput.jsx';
+import DeliveryAddressesList from '../components/DeliveryAddressesList.jsx';
 import { useTranslation } from 'react-i18next';
 
 export default function Me() {
@@ -15,11 +17,42 @@ export default function Me() {
   );
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
+  const [deliveryAddresses, setDeliveryAddresses] = useState([]);
+  const [loadingAddresses, setLoadingAddresses] = useState(true);
 
   const isVendorOwner = VENDOR_ROLES.includes(user.role);
+  const isConsumer = user.role === 'consumer';
 
   const { t, i18n } = useTranslation();
   const lang = i18n.language || 'en';
+
+  useEffect(() => {
+    if (isConsumer) {
+      fetchDeliveryAddresses();
+    }
+  }, [isConsumer]);
+
+  const fetchDeliveryAddresses = async () => {
+    try {
+      setLoadingAddresses(true);
+      const result = await api('/api/auth/delivery-addresses');
+      setDeliveryAddresses(result.addresses || []);
+    } catch (e) {
+      console.error('Failed to load delivery addresses:', e);
+    } finally {
+      setLoadingAddresses(false);
+    }
+  };
+
+  const handleAddressUpdate = async (newAddress) => {
+    // Refresh the address list
+    await fetchDeliveryAddresses();
+  };
+
+  const handleAddressDelete = async (id) => {
+    // Remove from local state
+    setDeliveryAddresses(prev => prev.filter(a => a.id !== id));
+  };
 
   const save = async () => {
     setErr('');
@@ -111,6 +144,21 @@ export default function Me() {
             {msg && <div className="muted" style={{ marginTop: 8 }}>{t('Saved')}</div>}
             {err && <div style={{ color: 'var(--danger)', marginTop: 8 }}>{t(err)}</div>}
           </div>
+
+          {isConsumer && (
+            <div>
+              <h2 className="h2" style={{ marginTop: 24 }}>{t('Delivery Addresses')}</h2>
+              {loadingAddresses ? (
+                <div className="card muted">{t('Loading...')}</div>
+              ) : (
+                <DeliveryAddressesList
+                  addresses={deliveryAddresses}
+                  onUpdate={handleAddressUpdate}
+                  onDelete={handleAddressDelete}
+                />
+              )}
+            </div>
+          )}
         </>
       )}
     </div>

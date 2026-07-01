@@ -15,9 +15,35 @@ const WORKFLOW_TRANSITIONS = {
   Completed:             ['UserConfirmed', 'SystemDone'],
 };
 
-function OrderDetails({ order, allOrders }) {
+function OrderDetails({ order, allOrders, refresh }) {
   const { t } = useTranslation();
   const { fmt } = useCurrency();
+  const [commentInput, setCommentInput] = useState('');
+  const [replyToId, setReplyToId] = useState(null);
+  const [commentBusy, setCommentBusy] = useState(false);
+  const [comments, setComments] = useState(order.comments || []);
+  const [loadingComments, setLoadingComments] = useState(false);
+
+  useEffect(() => {
+    setComments(order.comments || []);
+  }, [order.id, order.comments]);
+
+  useEffect(() => {
+    if ((!order.comments || order.comments.length === 0) && order.has_opening_comments) {
+      (async () => {
+        setLoadingComments(true);
+        try {
+          const data = await api(`/api/orders/${order.id}`);
+          setComments(data.order.comments || []);
+        } catch (e) {
+          console.error('Failed to load order comments', e);
+        } finally {
+          setLoadingComments(false);
+        }
+      })();
+    }
+  }, [order.id, order.comments, order.has_opening_comments]);
+
   // For supplement orders, show the parent order's details
   let displayOrder = order;
   let isSupp = false;
@@ -73,6 +99,118 @@ function OrderDetails({ order, allOrders }) {
   const frameItem = displayOrder.items?.find(i => i.kind === 'frame');
   const frameName = frameItem?.label || meta.frame_name;
   const hasEyesight = Object.values(eyesight).some(v => v != null);
+
+  const submitComment = async () => {
+    if (!commentInput.trim()) return;
+    setCommentBusy(true);
+    try {
+      const result = await api(`/api/orders/${order.id}/comments`, {
+        method: 'POST',
+        body: { content: commentInput.trim(), parent_id: replyToId || null },
+      });
+      setComments(result.comments || comments);
+      setCommentInput('');
+      setReplyToId(null);
+      if (refresh) refresh();
+    } catch (e) {
+      alert(e.message || t('Unable to add comment'));
+    } finally {
+      setCommentBusy(false);
+    }
+  };
+
+  const handleReplyClick = (event, commentId) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setReplyToId(commentId);
+    setCommentInput('');
+  };
+
+  const handleSubmitComment = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    submitComment();
+  };
+
+  const handleCancelReply = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setReplyToId(null);
+    setCommentInput('');
+  };
+
+  const stopComposerPropagation = (event) => {
+    event.stopPropagation();
+  };
+
+  const renderComments = (parentId = null, depth = 0) => {
+    const items = (comments || []).filter(c => (c.parent_id || null) === parentId);
+    if (!items.length) return null;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: depth === 0 ? 8 : 6 }}>
+        {items.map(comment => {
+          const author = comment.author_nickname || comment.real_name || comment.mobile || t('Customer');
+          const createdAt = comment.created_at ? new Date(comment.created_at).toLocaleString() : '';
+          return (
+            <div key={comment.id} style={{ marginLeft: depth * 10, padding: 10, border: '1px solid var(--border)', borderRadius: 8, background: depth === 0 ? '#fafafa' : '#fff' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                <strong>{author}</strong>
+                <span className="muted" style={{ fontSize: 12 }}>{createdAt}</span>
+              </div>
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{comment.content}</div>
+              <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="btn secondary"
+                  style={{ width: 'auto', padding: '4px 8px', fontSize: 13 }}
+                  onClick={(event) => handleReplyClick(event, comment.id)}
+                >
+                  {t('Reply')}
+                </button>
+                <button
+                  type="button"
+                  className="btn secondary"
+                  style={{ width: 'auto', padding: '4px 8px', fontSize: 13 }}
+                  disabled={commentBusy || replyToId !== comment.id || !commentInput.trim()}
+                  onClick={handleSubmitComment}
+                >
+                  {t('Submit')}
+                </button>
+              </div>
+              {replyToId === comment.id && (
+                <div
+                  style={{ marginTop: 8 }}
+                  onClick={stopComposerPropagation}
+                  onMouseDown={stopComposerPropagation}
+                  onTouchStart={stopComposerPropagation}
+                  onFocus={stopComposerPropagation}
+                >
+                  <textarea
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    onClick={stopComposerPropagation}
+                    onMouseDown={stopComposerPropagation}
+                    onTouchStart={stopComposerPropagation}
+                    onFocus={stopComposerPropagation}
+                    placeholder={t('Write a reply')}
+                    style={{ width: '100%', minHeight: 84, padding: 10, borderRadius: 8, border: '1px solid var(--border)', resize: 'vertical' }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button type="button" className="btn secondary" onClick={handleCancelReply}>
+                      {t('Cancel reply')}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {renderComments(comment.id, depth + 1)}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const hasComments = Array.isArray(comments) && comments.length > 0;
   return (
     <div style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 10, fontSize: 13 }}>
       {isSupp && (
@@ -189,6 +327,43 @@ function OrderDetails({ order, allOrders }) {
           ))}
         </div>
       )}
+      <div className="card" style={{ marginTop: 12, padding: 12, background: '#fff' }}>
+        <div className="label" style={{ fontSize: 11 }}>{t('COMMENTS')}</div>
+        {loadingComments ? (
+          <div className="muted" style={{ marginTop: 8 }}>{t('Loading...')}</div>
+        ) : hasComments ? (
+          renderComments()
+        ) : (
+          <div className="muted" style={{ marginTop: 8 }}>{t('No comments yet.')}</div>
+        )}
+        {!replyToId ? (
+          <div
+            style={{ marginTop: 12 }}
+            onClick={stopComposerPropagation}
+            onMouseDown={stopComposerPropagation}
+            onTouchStart={stopComposerPropagation}
+            onFocus={stopComposerPropagation}
+          >
+            <textarea
+              value={commentInput}
+              onChange={(e) => setCommentInput(e.target.value)}
+              onClick={stopComposerPropagation}
+              onMouseDown={stopComposerPropagation}
+              onTouchStart={stopComposerPropagation}
+              onFocus={stopComposerPropagation}
+              placeholder={t('Add a comment for this order')}
+              style={{ width: '100%', minHeight: 84, padding: 10, borderRadius: 8, border: '1px solid var(--border)', resize: 'vertical' }}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button type="button" className="btn" disabled={commentBusy || !commentInput.trim()} onClick={handleSubmitComment}>
+                {t('Add comment')}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="muted" style={{ marginTop: 12 }}>{t('Replying to a previous comment')}</div>
+        )}
+      </div>
     </div>
   );
 }
@@ -199,6 +374,7 @@ const ALL_STATUSES = [
   'CheckupPaid', 'PendingForOrder', 'PendingForPayment', 'Finalised',
   'Processing', 'Completed', 'Cancelled', 'SystemDone',
 ];
+const SPECIAL_FILTERS = [{ value: '_opening_comments', label: 'Openning Comment(s)' }];
 
 export default function AdminOrders() {
   const { user } = useAuth();
@@ -276,7 +452,11 @@ export default function AdminOrders() {
   };
 
   const workflowTargets = (status) => (WORKFLOW_TRANSITIONS[status] || []);
-  const displayed = filterStatus ? orders.filter(o => o.status === filterStatus) : orders;
+  const displayed = filterStatus === '_opening_comments'
+    ? orders.filter(o => o.has_opening_comments)
+    : filterStatus
+      ? orders.filter(o => o.status === filterStatus)
+      : orders;
   console.log('AdminOrders render, orders count=', orders.length, 'filterStatus=', filterStatus);
 
   return (
@@ -351,6 +531,10 @@ export default function AdminOrders() {
           style={{ flex: 1, minWidth: 160, width: 'auto' }}
         >
           <option value="">{t('All statuses')} ({orders.length})</option>
+          {SPECIAL_FILTERS.map(({ value, label }) => {
+            const count = orders.filter(o => o.has_opening_comments).length;
+            return count > 0 ? <option key={value} value={value}>{t(label)} ({count})</option> : null;
+          })}
           {ALL_STATUSES.map(s => {
             const count = orders.filter(o => o.status === s).length;
             return count > 0 ? <option key={s} value={s}>{s} ({count})</option> : null;

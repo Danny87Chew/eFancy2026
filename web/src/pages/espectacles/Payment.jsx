@@ -240,14 +240,14 @@ export default function Payment() {
     if (method === 'paynow') {
       if (!paynowTriggered && order && !busy && !paynow && !formError) {
         setPaynowTriggered(true);
-        pay();
+        pay('paynow');
       }
     } else if (paynowTriggered) {
       setPaynowTriggered(false);
     }
   }, [method, order, busy, paynow, formError, paynowTriggered]);
 
-  const hasDeliveryAddress = Boolean(order?.delivery_address_id);
+  const hasDeliveryAddress = Boolean(order?.delivery_address_id || selectedAddressId);
   const canPay = !busy && !formError && hasDeliveryAddress && !savingAddress;
 
   const refreshOrder = async () => {
@@ -258,10 +258,13 @@ export default function Payment() {
   const updateOrderDeliveryAddress = async (addressId) => {
     if (!order) return;
     if (order.delivery_address_id === addressId) return;
+    const endpoint = order.module === 'checkup'
+      ? `/api/orders/${id}/checkup/address`
+      : `/api/orders/${id}/spectacles`;
     setSavingAddress(true);
     setAddressErr('');
     try {
-      await api(`/api/orders/${id}/spectacles`, {
+      await api(endpoint, {
         method: 'PATCH',
         body: { delivery_address_id: addressId },
       });
@@ -292,17 +295,27 @@ export default function Payment() {
     await updateOrderDeliveryAddress(addressId);
   };
 
-  const pay = async () => {
+  const pay = async (paymentMethod = method) => {
     setErr('');
     if (!hasDeliveryAddress) {
-      setErr(t('Please add or select a delivery address before payment.'));
-      return;
+      if (selectedAddressId) {
+        await updateOrderDeliveryAddress(selectedAddressId);
+        const d = await api(`/api/orders/${id}`);
+        setOrder(d.order);
+        if (!d.order.delivery_address_id) {
+          setErr(t('Please add or select a delivery address before payment.'));
+          return;
+        }
+      } else {
+        setErr(t('Please add or select a delivery address before payment.'));
+        return;
+      }
     }
-    const v = validate(method, form, t);
+    const v = validate(paymentMethod, form, t);
     if (v) { setErr(v); return; }
     setBusy(true);
     try {
-      const r = await api(`/api/orders/${id}/pay`, { method: 'POST', body: { method } });
+      const r = await api(`/api/orders/${id}/pay`, { method: 'POST', body: { method: paymentMethod } });
       if (r.paynow) {
         // show QR and wait for user confirmation
         setOrder(r.order);
@@ -310,7 +323,12 @@ export default function Payment() {
       } else {
         setOrder(r.order); setDone(true); reset();
       }
-    } catch (e) { setErr('Payment failed: ' + e.message); }
+    } catch (e) {
+      setErr('Payment failed: ' + e.message);
+      if (paymentMethod === 'paynow') {
+        setPaynowTriggered(false);
+      }
+    }
     finally { setBusy(false); }
   };
 
@@ -380,7 +398,7 @@ export default function Payment() {
         <div style={{ width: 70 }} />
       </div>
       <div className="card">
-        <div className="muted">Order {order.order_code}</div>
+        <div className="muted">{t('Order')} {order.order_code}</div>
         <div style={{ fontSize: 22, fontWeight: 700 }}>{fmt(order.total)}</div>
       </div>
       <div className="card">
@@ -395,7 +413,10 @@ export default function Payment() {
               type="radio"
               style={{ width: 'auto' }}
               checked={method === m.key}
-              onChange={() => { setMethod(m.key); setErr(''); }}
+              onChange={() => {
+                setMethod(m.key);
+                setErr('');
+              }}
             />
             {t(m.label)}
           </label>

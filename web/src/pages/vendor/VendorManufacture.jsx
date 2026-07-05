@@ -27,6 +27,7 @@ function OrderCard({ order: initialOrder, actionLabel, onAction }) {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [busy, setBusy] = useState(false);
   const { fmt } = useCurrency();
+  const { t } = useTranslation();
 
   useEffect(() => { setOrder(initialOrder); }, [initialOrder]);
 
@@ -153,6 +154,7 @@ function OrderCard({ order: initialOrder, actionLabel, onAction }) {
 }
 
 function AvailableOrdersTab() {
+  const { t } = useTranslation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -203,6 +205,7 @@ function AvailableOrdersTab() {
 }
 
 function TakenOrdersTab() {
+  const { t } = useTranslation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -275,19 +278,19 @@ export default function VendorManufacture() {
       <h1 className="h1">{t('Manufacture Orders') || '🏭 Manufacture Orders'}</h1>
 
       <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '2px solid var(--border)' }}>
-        {visibleTabs.map(([key, label]) => (
+        {visibleTabs.map(([key, labelKey]) => (
           <button key={key}
             onClick={() => setTab(key)}
             style={{
               flex: 1, padding: '10px 0', background: 'none', border: 'none', cursor: 'pointer',
               fontWeight: tab === key ? 700 : 400,
-              color: tab === key ? 'var(--primary)' : 'var(--muted)',
+              color: tab === key ? '#000000' : '#000000',
               borderBottom: tab === key ? '2px solid var(--primary)' : '2px solid transparent',
               marginBottom: -2,
-              fontSize: 13,
+              fontSize: 17,
             }}
           >
-            {label}
+            {t(labelKey)}
           </button>
         ))}
       </div>

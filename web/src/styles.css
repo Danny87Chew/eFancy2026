@@ -73,6 +73,7 @@ button { font-family: inherit; }
 .tab.tab-home.active { background: #ff6a00; color: #fff; border-color: #ff6a00; box-shadow: 0 0 0 4px #0a84ff80; }
 .topbar-right { 
   flex: 0 0 auto;
+  margin-left: auto;
   padding: 10px 12px;
   white-space: nowrap;
 }

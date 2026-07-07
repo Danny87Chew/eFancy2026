@@ -223,7 +223,32 @@ router.post('/spectacles', authRequired, (req, res) => {
 
   const meta = { frame_id, frame_name: frame.name, eyesight, lens, pricing: { frame_base_price: frameUnitBase, frame_promo_price: frameUnitPromo, chosen_frame_unit: chosenFrameUnit, base_total: base_total != null ? Number(base_total) : undefined, promo_total: promo_total != null ? Number(promo_total) : undefined } };
   if (frame.name_zh) meta.frame_name_zh = frame.name_zh;
+  if (frame.brand) meta.frame_brand = frame.brand;
+  if (frame.code) meta.frame_code = frame.code;
   if (checkup_order_id) meta.checkup_order_id = checkup_order_id;
+  if (lens.brand_id) {
+    const b = db.prepare('SELECT * FROM lens_brands WHERE id = ?').get(lens.brand_id);
+    if (b) {
+      if (b.name_zh) {
+        lens.brand_name_zh = b.name_zh;
+        meta.brand_name_zh = b.name_zh;
+      }
+      if (b.brand) {
+        lens.brand = b.brand;
+        meta.lens.brand = b.brand;
+      }
+      if (b.name) {
+        lens.name = b.name;
+        meta.lens.name = b.name;
+      }
+      if (b.code) {
+        lens.code = b.code;
+        lens.brand_code = b.code;
+        meta.lens.code = b.code;
+        meta.brand_code = b.code;
+      }
+    }
+  }
   const info = db
     .prepare(
       `INSERT INTO orders (order_code, user_id, module, status, total, meta_json, delivery_address_id)
@@ -277,10 +302,26 @@ router.patch('/:id/spectacles', authRequired, (req, res) => {
     if (!frame) return res.status(400).json({ error: 'invalid_frame' });
     meta.frame_id = frame.id;
     meta.frame_name = frame.name;
+    if (frame.brand) meta.frame_brand = frame.brand;
     if (frame.name_zh) meta.frame_name_zh = frame.name_zh;
+    if (frame.code) meta.frame_code = frame.code;
   }
   if (eyesight) meta.eyesight = eyesight;
-  if (lens) meta.lens = lens;
+  if (lens) {
+    if (lens.brand_id) {
+      const brand = db.prepare('SELECT * FROM lens_brands WHERE id = ?').get(lens.brand_id);
+      if (brand) {
+        if (brand.brand) lens.brand = brand.brand;
+        if (brand.name) lens.name = brand.name;
+        if (brand.code) {
+          lens.code = brand.code;
+          lens.brand_code = brand.code;
+        }
+        if (brand.name_zh) lens.brand_name_zh = brand.name_zh;
+      }
+    }
+    meta.lens = lens;
+  }
 
   let newDeliveryAddressId = o.delivery_address_id;
   if (req.body && Object.prototype.hasOwnProperty.call(req.body, 'delivery_address_id')) {
@@ -297,10 +338,26 @@ router.patch('/:id/spectacles', authRequired, (req, res) => {
     if (!frame) return res.status(400).json({ error: 'invalid_frame' });
     meta.frame_id = frame.id;
     meta.frame_name = frame.name;
+    if (frame.brand) meta.frame_brand = frame.brand;
     if (frame.name_zh) meta.frame_name_zh = frame.name_zh;
+    if (frame.code) meta.frame_code = frame.code;
   }
   if (eyesight) meta.eyesight = eyesight;
-  if (lens) meta.lens = lens;
+  if (lens) {
+    if (lens.brand_id) {
+      const brand = db.prepare('SELECT * FROM lens_brands WHERE id = ?').get(lens.brand_id);
+      if (brand) {
+        if (brand.brand) lens.brand = brand.brand;
+        if (brand.name) lens.name = brand.name;
+        if (brand.code) {
+          lens.code = brand.code;
+          lens.brand_code = brand.code;
+        }
+        if (brand.name_zh) lens.brand_name_zh = brand.name_zh;
+      }
+    }
+    meta.lens = lens;
+  }
 
   // Support promo_total/base_total being sent from client
   const promo_total = req.body && req.body.promo_total != null ? Number(req.body.promo_total) : null;

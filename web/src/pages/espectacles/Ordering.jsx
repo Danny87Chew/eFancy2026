@@ -92,8 +92,12 @@ export default function Ordering() {
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           {frame.images && frame.images[0] && <img src={frame.images[0].url} alt="" style={{ width: 96, height: 72, objectFit: 'cover', borderRadius: 8 }} />}
           <div style={{ flex: 1 }}>
-            <strong>{frame.name}</strong>
-            <div className="muted">
+            <div style={{ marginTop: 6, lineHeight: 1.6 }}>
+              {frame.brand ? <div>{t('Frame Brand')}: {frame.brand}</div> : null}
+              <div>{t('Frame Name')}: {(lang && lang.startsWith('zh')) ? (frame.name_zh || frame.name) : frame.name}</div>
+              {frame.code ? <div>{t('Frame Code')}: {frame.code}</div> : null}
+            </div>
+            <div className="muted" style={{ marginTop: 8 }}>
               {(frame.promotion_price && Number(frame.promotion_price) > 0 && Number(frame.promotion_price) < Number(frame.base_price)) ? (
                 <div>
                   <span style={{ textDecoration: 'line-through', marginRight: 8 }}>{fmt(frame.base_price)}</span>
@@ -162,8 +166,15 @@ export default function Ordering() {
           <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--primary)' }}>{t('Lens brand')}</span>
           <select value={lens.brand_id || ''} onChange={e => setLens(l => ({ ...l, brand_id: Number(e.target.value) || null }))}>
             <option value="">{t('Default')}</option>
-            {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            {brands.map(b => <option key={b.id} value={b.id}>{b.brand || b.name}{b.name && b.name !== b.brand ? ` / ${b.name}` : ''}{b.code ? ` (${b.code})` : ''}</option>)}
           </select>
+          {brand ? (
+            <div style={{ marginTop: 6, color: 'var(--muted)', fontSize: 14, lineHeight: 1.5 }}>
+              {brand.brand ? <div><strong>{t('Len Brand')}:</strong> {brand.brand}</div> : null}
+              {brand.name && brand.name !== brand.brand ? <div><strong>{t('Len Name')}:</strong> {brand.name}</div> : null}
+              {brand.code ? <div><strong>{t('Len Code')}:</strong> {brand.code}</div> : null}
+            </div>
+          ) : null}
         </label>
         <label className="field" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--primary)' }}>{t('Blue-light blocking')}</span>

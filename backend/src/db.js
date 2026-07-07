@@ -39,6 +39,7 @@ function init() {
   CREATE TABLE IF NOT EXISTS spectacle_frames (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
+    code TEXT,
     brand TEXT,
     base_price REAL NOT NULL DEFAULT 0,
     promotion_price REAL NOT NULL DEFAULT 0,
@@ -48,8 +49,14 @@ function init() {
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  `);
   
+  const spectacleFrameCols = db.prepare(`PRAGMA table_info(spectacle_frames)`).all().map(c => c.name);
+  if (!spectacleFrameCols.includes('code')) {
+    db.prepare('ALTER TABLE spectacle_frames ADD COLUMN code TEXT').run();
+  }
 
+  db.exec(`
   CREATE TABLE IF NOT EXISTS frame_images (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     frame_id INTEGER NOT NULL,
@@ -60,7 +67,9 @@ function init() {
 
   CREATE TABLE IF NOT EXISTS lens_brands (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    brand TEXT,
     name TEXT NOT NULL UNIQUE,
+    code TEXT,
     price_multiplier REAL NOT NULL DEFAULT 1.0,
     vendor_name TEXT,
     vendor_office TEXT,
@@ -293,12 +302,15 @@ function init() {
     db.prepare(`ALTER TABLE spectacle_frames ADD COLUMN name_zh TEXT`).run();
   }
 
-  // Add vendor contact columns to lens_brands
+  // Add brand/name/code and vendor contact columns to lens_brands
   const lensCols = db.prepare(`PRAGMA table_info(lens_brands)`).all().map(c => c.name);
-  for (const col of ['vendor_name', 'vendor_office', 'vendor_mobile', 'vendor_address']) {
+  for (const col of ['brand', 'code', 'vendor_name', 'vendor_office', 'vendor_mobile', 'vendor_address']) {
     if (!lensCols.includes(col)) {
       db.prepare(`ALTER TABLE lens_brands ADD COLUMN ${col} TEXT`).run();
     }
+  }
+  if (!lensCols.includes('brand') || !lensCols.includes('code')) {
+    db.prepare(`UPDATE lens_brands SET brand = COALESCE(brand, name) WHERE brand IS NULL`).run();
   }
 
   if (!lensCols.includes('name_zh')) {

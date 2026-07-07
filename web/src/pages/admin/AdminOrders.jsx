@@ -237,17 +237,25 @@ function OrderDetails({ order, allOrders, refresh }) {
           <strong style={{ fontSize: 16, color: '#000' }}>{fmt(Number(order.meta?.vendor_price ?? 0))}</strong>
         </div>
       )}
-      {frameName && (
+      {(frameName || meta.frame_brand || meta.frame_code) && (
         <div style={{ marginBottom: 6 }}>
           <div className="label" style={{ fontSize: 11, fontWeight: 700, color: '#2563eb' }}>{t('FRAME')}</div>
-          <div>{frameName}</div>
+          <ul style={{ paddingLeft: 18, margin: 0 }}>
+            {meta.frame_brand ? <li>{t('Frame Brand')}: {meta.frame_brand}</li> : null}
+            {frameName ? <li>{t('Frame Name')}: {frameName}</li> : null}
+            {meta.frame_code ? <li>{t('Frame Code')}: {meta.frame_code}</li> : null}
+          </ul>
         </div>
       )}
       {(lensItem || Object.keys(lens).length > 0) && (
         <div style={{ marginBottom: 6 }}>
           <div className="label" style={{ fontSize: 11, fontWeight: 700, color: '#2563eb' }}>{t('LENS')}</div>
-          {lensItem && <div>{lensItem.label}</div>}
-          {lens.thickness && <div>{t('Thickness')}: <strong>{lens.thickness}</strong></div>}
+          <ul style={{ paddingLeft: 18, margin: 0 }}>
+            {lens.brand ? <li>{t('Lens Brand')}: {lens.brand}</li> : null}
+            {lens.name ? <li>{t('Lens Name')}: {lens.name}</li> : null}
+            {(lens.code || lens.brand_code) ? <li>{t('Lens Code')}: {lens.code || lens.brand_code}</li> : null}
+          </ul>
+          {lens.thickness && <div style={{ marginTop: 4 }}>{t('Thickness')}: <strong>{lens.thickness}</strong></div>}
           {lens.blueLight && <div>✓ {t('Blue Light Filter')}</div>}
           {lens.photochromic && <div>✓ {t('Photochromic')}</div>}
           {lens.progressive && <div>✓ {t('Progressive')}</div>}

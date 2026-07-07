@@ -4,7 +4,7 @@ import PhoneInput from '../../components/PhoneInput.jsx';
 import { useCurrency } from '../../state/CurrencyContext.jsx';
 import { useTranslation } from 'react-i18next';
 
-const emptyForm = { name: '', brand: '', vendor: '', base_price: '', promotion_price: '', images: '', vendor_office: '', vendor_mobile: '', vendor_address: '', vendor_road: '', vendor_postcode: '', vendor_building: '', vendor_floor: '', vendor_unit: '', active: 1 };
+const emptyForm = { name: '', code: '', brand: '', vendor: '', base_price: '', promotion_price: '', images: '', vendor_office: '', vendor_mobile: '', vendor_address: '', vendor_road: '', vendor_postcode: '', vendor_building: '', vendor_floor: '', vendor_unit: '', active: 1 };
 
 export default function AdminFrames() {
   const { t } = useTranslation();
@@ -73,6 +73,7 @@ export default function AdminFrames() {
     setEditingId(f.id);
     const next = {
       name: f.name || '',
+      code: f.code || '',
       brand: f.brand || '',
       vendor: f.vendor || '',
       base_price: String(f.base_price ?? ''),
@@ -117,6 +118,7 @@ export default function AdminFrames() {
       method: 'PATCH',
       body: {
         name: editForm.name,
+        code: editForm.code,
         brand: editForm.brand,
         vendor: editForm.vendor,
         base_price: Number(editForm.base_price) || 0,
@@ -201,6 +203,7 @@ export default function AdminFrames() {
             </div>
           </label>
         <label className="field">{t('Frame Name')}<input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
+        <label className="field">{t('Frame Code')}<input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></label>
         <label className="field">{t('Brand')}<input value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} /></label>
         <label className="field">{t('Vendor name')}
           <select value={vendorSelectedId || ''} onChange={e => {
@@ -290,6 +293,7 @@ export default function AdminFrames() {
             </div>
           </label>
           <label className="field">{t('Frame Name')}<input value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} /></label>
+          <label className="field">{t('Frame Code')}<input value={editForm.code} onChange={e => setEditForm({ ...editForm, code: e.target.value })} /></label>
           <label className="field">{t('Brand')}<input value={editForm.brand} onChange={e => setEditForm({ ...editForm, brand: e.target.value })} /></label>
           <label className="field">{t('Vendor name')}
             <select value={editVendorSelectedId || ''} onChange={e => {
@@ -370,6 +374,7 @@ export default function AdminFrames() {
           <div style={{ flex: 1 }}>
             <strong>{f.name}</strong>
             <div className="muted">
+              {f.code ? <span style={{ marginRight: 8 }}>{t('Code')}: {f.code}</span> : null}
               {(f.promotion_price && Number(f.promotion_price) > 0 && Number(f.promotion_price) < Number(f.base_price)) ? (
                 <span>
                   <span style={{ textDecoration: 'line-through', marginRight: 8 }}>{fmt(f.base_price)}</span>

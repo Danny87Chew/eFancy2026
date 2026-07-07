@@ -26,6 +26,7 @@ function OrderCard({ order: initialOrder, actionLabel, onAction }) {
   const [expanded, setExpanded] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [frameDetails, setFrameDetails] = useState(null);
   const { fmt } = useCurrency();
   const { t } = useTranslation();
 
@@ -44,6 +45,24 @@ function OrderCard({ order: initialOrder, actionLabel, onAction }) {
     }
   };
 
+  useEffect(() => {
+    if (!expanded || !order.items) return;
+    const frameId = order.meta?.frame_id || order.items.find(i => i.kind === 'frame')?.ref_id;
+    if (!frameId) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const data = await api(`/api/frames/${frameId}`);
+        if (!cancelled) setFrameDetails(data.frame || null);
+      } catch {
+        if (!cancelled) setFrameDetails(null);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [expanded, order.items, order.meta]);
+
   const doAction = async (e) => {
     e.stopPropagation();
     setBusy(true);
@@ -55,7 +74,21 @@ function OrderCard({ order: initialOrder, actionLabel, onAction }) {
   const eyesight = meta.eyesight || {};
   const lens = meta.lens || {};
   const frameItem = order.items?.find(i => i.kind === 'frame');
-
+  const lensItem = order.items?.find(i => i.kind === 'lens');
+  const frameBrand = frameDetails?.brand || meta.frame_brand || null;
+  const frameName = frameDetails?.name || frameItem?.label || meta.frame_name || meta.frame_name_zh || null;
+  const frameCode = frameDetails?.code || meta.frame_code || null;
+  const lensBrand = lens.brand || lensItem?.label || lens.brand_name_zh || null;
+  const lensName = lens.name || null;
+  let lensCode = lens.code || lens.brand_code || null;
+  if (!lensCode && lensItem?.meta_json) {
+    try {
+      const itemMeta = typeof lensItem.meta_json === 'string' ? JSON.parse(lensItem.meta_json) : lensItem.meta_json;
+      lensCode = itemMeta?.brand_code || null;
+    } catch (e) {
+      lensCode = null;
+    }
+  }
   return (
     <div className="card" style={{ marginBottom: 12 }}>
       <div
@@ -91,17 +124,35 @@ function OrderCard({ order: initialOrder, actionLabel, onAction }) {
             <div className="muted" style={{ fontSize: 15 }}>{t('Loading')}</div>
           ) : (
             <>
-              {frameItem && (
+              {frameName && (
                 <div style={{ marginBottom: 12 }}>
-                  <div className="label" style={{ fontSize: 13, marginBottom: 4, fontWeight: 700, color: '#2563eb' }}>{t('FRAME')}</div>
-                  <div style={{ fontWeight: 600, fontSize: 17 }}>{frameItem.label}</div>
+                  <div className="label" style={{ fontSize: 15, marginBottom: 4, fontWeight: 700, color: '#2563eb' }}>{t('FRAME')}</div>
+                  {frameDetails?.images?.[0]?.url ? (
+                    <img
+                      src={frameDetails.images[0].url}
+                      alt={frameName}
+                      style={{ width: 120, height: 96, objectFit: 'cover', borderRadius: 10, marginBottom: 8, display: 'block' }}
+                    />
+                  ) : null}
+                  {frameBrand ? (
+                    <div style={{ marginBottom: 6, fontSize: 15 }}>{t('Brand')}: <strong>{frameBrand}</strong></div>
+                  ) : null}
+                  {frameName ? (
+                    <div style={{ marginBottom: 6, fontSize: 15 }}>{t('Name')}: <strong>{frameName}</strong></div>
+                  ) : null}
+                  {frameCode ? (
+                    <div style={{ marginBottom: 6, fontSize: 15 }}>{t('Frame Code')}: <strong>{frameCode}</strong></div>
+                  ) : null}
                 </div>
               )}
 
               {Object.keys(lens).length > 0 && (
                 <div style={{ marginBottom: 12 }}>
-                  <div className="label" style={{ fontSize: 13, marginBottom: 4, fontWeight: 700, color: '#2563eb' }}>{t('LENS OPTIONS')}</div>
+                  <div className="label" style={{ fontSize: 15, marginBottom: 4, fontWeight: 700, color: '#2563eb' }}>{t('LENS OPTIONS')}</div>
                   <div style={{ fontSize: 16, lineHeight: 1.6 }}>
+                    {lensBrand && <div><strong>{t('Brand')}:</strong> {lensBrand}</div>}
+                    {lensName && <div><strong>{t('Name')}:</strong> {lensName}</div>}
+                    {lensCode && <div><strong>{t('Lens Code')}:</strong> {lensCode}</div>}
                     {lens.thickness && <div>{t('Thickness')}: <strong>{lens.thickness}</strong></div>}
                     {lens.blueLight && <div>✓ {t('Blue-light')}</div>}
                     {lens.photochromic && <div>✓ {t('Photochromic')}</div>}
@@ -112,7 +163,7 @@ function OrderCard({ order: initialOrder, actionLabel, onAction }) {
 
               {eyesight.pd != null && (
                 <div style={{ marginBottom: 12 }}>
-                  <div className="label" style={{ fontSize: 13, marginBottom: 6, fontWeight: 700, color: '#2563eb' }}>{t('EYESIGHT')}</div>
+                  <div className="label" style={{ fontSize: 15, marginBottom: 6, fontWeight: 700, color: '#2563eb' }}>{t('EYESIGHT')}</div>
                   <table style={{ fontSize: 15, borderCollapse: 'collapse', width: '100%' }}>
                     <thead>
                       <tr style={{ color: 'var(--muted)' }}>

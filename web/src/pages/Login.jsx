@@ -62,6 +62,15 @@ function Login() {
   const [addressForSetup, setAddressForSetup] = useState(null);
   const [skipAddress, setSkipAddress] = useState(false);
 
+  const isValidMobile = (m) => {
+    if (typeof m !== 'string') return false;
+    if (/^\+65[89]\d{7}$/.test(m)) return true;
+    if (/^\+60\d{8}$/.test(m)) return true;
+    if (/^\+861\d{12}$/.test(m)) return true;
+    return /^\+\d{8,16}$/.test(m);
+  };
+  const mobileValid = isValidMobile(mobile);
+
   const isVendor = role !== 'consumer';
 
   useEffect(() => {
@@ -315,16 +324,16 @@ function Login() {
             <button className="btn secondary" onClick={() => setPickingRole(false)}>
               {t('Back')}
             </button>
-            <button className="btn secondary" onClick={() => send('register')} disabled={busy || !mobile || !vendorFieldsComplete}>
+            <button className="btn secondary" onClick={() => send('register')} disabled={busy || !mobileValid || !vendorFieldsComplete}>
               {t('Send OTP To Register')} {t('Send OTP To Register as')} {t(ROLE_LABELS[role])}
             </button>
           </div>
         ) : (
           <div className="btn-row">
-            <button className="btn" onClick={() => send('login')} disabled={busy || !mobile}>
+            <button className="btn" onClick={() => send('login')} disabled={busy || !mobileValid}>
               {t('Send OTP To Login')}
             </button>
-            <button className="btn secondary" onClick={() => { setErr(''); setHint(''); setPickingRole(true); }} disabled={busy || !mobile}>
+            <button className="btn secondary" onClick={() => { setErr(''); setHint(''); setPickingRole(true); }} disabled={busy || !mobileValid}>
               {t('Send OTP To Register')}
             </button>
           </div>

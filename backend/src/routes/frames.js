@@ -31,11 +31,11 @@ router.get('/:id', (req, res) => {
 
 // Admin CRUD
 router.post('/', authRequired, requireAdmin, (req, res) => {
-  const { name, brand, vendor, base_price, promotion_price, images, vendor_office, vendor_mobile, vendor_address, active } = req.body || {};
+  const { name, code, brand, vendor, base_price, promotion_price, images, vendor_office, vendor_mobile, vendor_address, active } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name_required' });
   const info = db
-    .prepare('INSERT INTO spectacle_frames (name, brand, vendor, base_price, promotion_price, vendor_office, vendor_mobile, vendor_address, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(name, brand || null, vendor || null, Number(base_price) || 0, Number(promotion_price) || 0, vendor_office || null, vendor_mobile || null, vendor_address || null, active != null ? (active ? 1 : 0) : 1);
+    .prepare('INSERT INTO spectacle_frames (name, code, brand, vendor, base_price, promotion_price, vendor_office, vendor_mobile, vendor_address, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(name, code || null, brand || null, vendor || null, Number(base_price) || 0, Number(promotion_price) || 0, vendor_office || null, vendor_mobile || null, vendor_address || null, active != null ? (active ? 1 : 0) : 1);
   const id = info.lastInsertRowid;
   if (Array.isArray(images)) {
     const stmt = db.prepare('INSERT INTO frame_images (frame_id, url, sort_order) VALUES (?, ?, ?)');
@@ -45,10 +45,11 @@ router.post('/', authRequired, requireAdmin, (req, res) => {
 });
 
 router.patch('/:id', authRequired, requireAdmin, (req, res) => {
-  const { name, brand, vendor, base_price, promotion_price, active, images, vendor_office, vendor_mobile, vendor_address } = req.body || {};
+  const { name, code, brand, vendor, base_price, promotion_price, active, images, vendor_office, vendor_mobile, vendor_address } = req.body || {};
   db.prepare(
     `UPDATE spectacle_frames SET
        name = COALESCE(?, name),
+       code = COALESCE(?, code),
        brand = COALESCE(?, brand),
        vendor = COALESCE(?, vendor),
        base_price = COALESCE(?, base_price),
@@ -60,6 +61,7 @@ router.patch('/:id', authRequired, requireAdmin, (req, res) => {
      WHERE id = ?`
   ).run(
     name ?? null,
+    code ?? null,
     brand ?? null,
     vendor ?? null,
     base_price != null ? Number(base_price) : null,

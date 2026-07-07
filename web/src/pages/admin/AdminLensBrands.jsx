@@ -7,13 +7,16 @@ export default function AdminLensBrands() {
   const { t } = useTranslation();
   const [showAddBrand, setShowAddBrand] = useState(false);
   const [brands, setBrands] = useState([]);
-  const [form, setForm] = useState({ name: '', price_multiplier: '1.0', vendor_name: '', vendor_office: '', vendor_mobile: '', vendor_address: '', vendor_road: '', vendor_postcode: '', vendor_building: '', vendor_floor: '', vendor_unit: '', active: 1 });
+  const [form, setForm] = useState({ brand: '', name: '', code: '', price_multiplier: '1.0', vendor_name: '', vendor_office: '', vendor_mobile: '', vendor_address: '', vendor_road: '', vendor_postcode: '', vendor_building: '', vendor_floor: '', vendor_unit: '', active: 1 });
   const [vendors, setVendors] = useState([]);
   const [vendorSelectedId, setVendorSelectedId] = useState(null);
   const [editActive, setEditActive] = useState(1);
   const [editingId, setEditingId] = useState(null);
   const [editMultiplier, setEditMultiplier] = useState('');
   const [editInitial, setEditInitial] = useState('');
+  const [editBrand, setEditBrand] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editCode, setEditCode] = useState('');
   const [editVendorSelectedId, setEditVendorSelectedId] = useState(null);
   const [editVendorName, setEditVendorName] = useState('');
   const [editVendorOffice, setEditVendorOffice] = useState('');
@@ -26,7 +29,7 @@ export default function AdminLensBrands() {
   const [editVendorUnit, setEditVendorUnit] = useState('');
   const [vendorPostcodeLookup, setVendorPostcodeLookup] = useState({ loading: false, error: '' });
   const [savingId, setSavingId] = useState(null);
-  const load = () => api('/api/lens-brands').then(d => setBrands(d.brands));
+  const load = () => api('/api/lens-brands?include_inactive=1').then(d => setBrands(d.brands));
   useEffect(() => { load(); }, []);
   useEffect(() => {
     const loadVendors = async () => {
@@ -81,7 +84,9 @@ export default function AdminLensBrands() {
   const create = async () => {
     if (!form.name) return;
     await api('/api/lens-brands', { method: 'POST', body: {
+      brand: form.brand || undefined,
       name: form.name,
+      code: form.code || undefined,
       price_multiplier: Number(form.price_multiplier),
       vendor_name: form.vendor_name || undefined,
       vendor_office: form.vendor_office || undefined,
@@ -94,7 +99,7 @@ export default function AdminLensBrands() {
       vendor_unit: form.vendor_unit || undefined,
       active: form.active != null ? (form.active ? 1 : 0) : 1,
     } });
-    setForm({ name: '', price_multiplier: '1.0', vendor_name: '', vendor_office: '', vendor_mobile: '', vendor_address: '', vendor_road: '', vendor_postcode: '', vendor_building: '', vendor_floor: '', vendor_unit: '', active: 1 });
+    setForm({ brand: '', name: '', code: '', price_multiplier: '1.0', vendor_name: '', vendor_office: '', vendor_mobile: '', vendor_address: '', vendor_road: '', vendor_postcode: '', vendor_building: '', vendor_floor: '', vendor_unit: '', active: 1 });
     setShowAddBrand(false);
     load();
   };
@@ -104,6 +109,9 @@ export default function AdminLensBrands() {
     const v = String(brand.price_multiplier ?? '1');
     setEditMultiplier(v);
     setEditInitial(v);
+    setEditBrand(brand.brand || '');
+    setEditName(brand.name || '');
+    setEditCode(brand.code || '');
     setEditVendorName(brand.vendor_name || '');
     setEditVendorOffice(brand.vendor_office || '');
     setEditVendorMobile(brand.vendor_mobile || '');
@@ -123,6 +131,8 @@ export default function AdminLensBrands() {
     setEditingId(null);
     setEditMultiplier('');
     setEditInitial('');
+    setEditBrand('');
+    setEditName('');
     setEditVendorName('');
     setEditVendorOffice('');
     setEditVendorMobile('');
@@ -142,6 +152,9 @@ export default function AdminLensBrands() {
     setSavingId(brandId);
     try {
       await api(`/api/lens-brands/${brandId}`, { method: 'PATCH', body: {
+        brand: editBrand || undefined,
+        name: editName || undefined,
+        code: editCode || undefined,
         price_multiplier: next,
         vendor_name: editVendorName || undefined,
         vendor_office: editVendorOffice || undefined,
@@ -161,6 +174,24 @@ export default function AdminLensBrands() {
     }
   };
 
+  const hasEditChanges = (brand) => {
+    if (String(editMultiplier) !== editInitial) return true;
+    if (editBrand !== (brand.brand || '')) return true;
+    if (editName !== (brand.name || '')) return true;
+    if (editCode !== (brand.code || '')) return true;
+    if (editActive !== (brand.active != null ? (brand.active ? 1 : 0) : 1)) return true;
+    if (editVendorName !== (brand.vendor_name || '')) return true;
+    if (editVendorOffice !== (brand.vendor_office || '')) return true;
+    if (editVendorMobile !== (brand.vendor_mobile || '')) return true;
+    if (editVendorAddress !== (brand.vendor_address || '')) return true;
+    if (editVendorRoad !== (brand.vendor_road || '')) return true;
+    if (editVendorPostcode !== (brand.vendor_postcode || '')) return true;
+    if (editVendorBuilding !== (brand.vendor_building || '')) return true;
+    if (editVendorFloor !== (brand.vendor_floor || '')) return true;
+    if (editVendorUnit !== (brand.vendor_unit || '')) return true;
+    return false;
+  };
+
   return (
     <div>
       <div style={{ marginBottom: 12 }}>
@@ -172,7 +203,7 @@ export default function AdminLensBrands() {
             <strong>{t('Add lens brand')}</strong>
             <button
               className="btn secondary"
-              onClick={() => { setShowAddBrand(false); setForm({ name: '', price_multiplier: '1.0', vendor_name: '', vendor_office: '', vendor_mobile: '', vendor_address: '', vendor_road: '', vendor_postcode: '', vendor_building: '', vendor_floor: '', vendor_unit: '', active: 1 }); }}
+              onClick={() => { setShowAddBrand(false); setForm({ brand: '', name: '', code: '', price_multiplier: '1.0', vendor_name: '', vendor_office: '', vendor_mobile: '', vendor_address: '', vendor_road: '', vendor_postcode: '', vendor_building: '', vendor_floor: '', vendor_unit: '', active: 1 }); }}
               style={{ padding: '6px 8px', width: 180, marginLeft: 'auto' }}
             >{t('Close')}</button>
           </div>
@@ -186,7 +217,9 @@ export default function AdminLensBrands() {
               </label>
           </div>
         </label>
+        <label className="field">{t('Brand')}<input value={form.brand || ''} onChange={e => setForm({ ...form, brand: e.target.value })} /></label>
         <label className="field">{t('Name')}<input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
+        <label className="field">{t('Lens Code')}<input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></label>
         <label className="field">{t('Vendor name')}
           <select value={vendorSelectedId || ''} onChange={e => {
             const id = e.target.value || null;
@@ -266,7 +299,7 @@ export default function AdminLensBrands() {
         </div>
         <label className="field">{t('Price multiplier')}<input value={form.price_multiplier} onChange={e => setForm({ ...form, price_multiplier: e.target.value })} inputMode="decimal" /></label>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn secondary" onClick={() => { setForm({ name: '', price_multiplier: '1.0', vendor_name: '', vendor_office: '', vendor_mobile: '', vendor_address: '', vendor_road: '', vendor_postcode: '', vendor_building: '', vendor_floor: '', vendor_unit: '', active: 1 }); setShowAddBrand(false); }}>{t('Form.Cancel')}</button>
+          <button className="btn secondary" onClick={() => { setForm({ brand: '', name: '', code: '', price_multiplier: '1.0', vendor_name: '', vendor_office: '', vendor_mobile: '', vendor_address: '', vendor_road: '', vendor_postcode: '', vendor_building: '', vendor_floor: '', vendor_unit: '', active: 1 }); setShowAddBrand(false); }}>{t('Form.Cancel')}</button>
           <button className="btn" onClick={create}>{t('Add brand')}</button>
         </div>
         </div>
@@ -274,7 +307,11 @@ export default function AdminLensBrands() {
       {brands.map(b => (
         <div key={b.id} className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <strong>{b.name}</strong>
+            <div>
+              <strong>{b.brand || b.name}</strong>
+              {b.name && b.name !== b.brand ? <div className="muted" style={{ marginTop: 2 }}>{t('Name')}: {b.name}</div> : null}
+              {b.code ? <div className="muted" style={{ marginTop: 2 }}>{t('Lens Code')}: {b.code}</div> : null}
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span className="muted">×{b.price_multiplier}</span>
               <div>
@@ -298,7 +335,7 @@ export default function AdminLensBrands() {
               <button
                 className="btn"
                 style={{ width: 'auto', padding: '6px 10px' }}
-                disabled={savingId === b.id || editMultiplier === editInitial}
+                disabled={savingId === b.id || !hasEditChanges(b)}
                 onClick={() => saveEdit(b.id)}
               >
                 {savingId === b.id ? t('Saving…') : t('Save')}
@@ -335,7 +372,10 @@ export default function AdminLensBrands() {
                   </label>
                 </div>
               </label>
-              <label className="field">{t('Vendor name')}
+              <label className="field">{t('Brand')}<input value={editBrand} onChange={e => setEditBrand(e.target.value)} /></label>
+              <label className="field">{t('Name')}<input value={editName} onChange={e => setEditName(e.target.value)} /></label>
+              <label className="field">{t('Lens Code')}<input value={editCode} onChange={e => setEditCode(e.target.value)} /></label>
+          <label className="field">{t('Vendor name')}
                 <select value={editVendorSelectedId || ''} onChange={e => {
                   const id = e.target.value || null;
                   if (!id) {

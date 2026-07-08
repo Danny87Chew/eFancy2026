@@ -260,6 +260,7 @@ function TakenOrdersTab() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
 
   const load = async () => {
     setLoading(true); setError('');
@@ -275,7 +276,14 @@ function TakenOrdersTab() {
   const handleAction = async (orderId, action) => {
     try {
       const d = await api(`/api/vendor/orders/${orderId}/${action}`, { method: 'POST' });
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...d.order } : o));
+      setOrders(prev => {
+        const updated = prev.map(o => o.id === orderId ? { ...d.order } : o);
+        // If current filter now has no orders, reset to "All statuses"
+        if (filterStatus && !updated.some(o => o.status === filterStatus)) {
+          setFilterStatus('');
+        }
+        return updated;
+      });
     } catch (e) {
       setError(e?.data?.error || 'Action failed.');
     }
@@ -291,9 +299,20 @@ function TakenOrdersTab() {
           <button className="btn secondary" style={{ marginTop: 6 }} onClick={() => setError('')}>{t('Dismiss')}</button>
         </div>
       )}
-      {orders.length === 0
+      <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <label style={{ fontSize: 16, color: 'var(--muted)', whiteSpace: 'nowrap', fontWeight: 700 }}>{t('Orders Taken:')}</label>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ padding: '6px 8px', fontSize: 16, width: '35%' }}>
+          <option value="">{t('All statuses')} ({orders.length})</option>
+          {Object.keys(STATUS_LABELS).map(s => {
+            const count = orders.filter(o => o.status === s).length;
+            return count > 0 ? <option key={s} value={s}>{t(STATUS_LABELS[s] || s)} ({count})</option> : null;
+          })}
+        </select>
+      </div>
+
+      {orders.filter(o => !filterStatus || o.status === filterStatus).length === 0
         ? <div className="card"><span className="muted">{t('No taken orders yet.')}</span></div>
-        : orders.map(o => {
+        : orders.filter(o => !filterStatus || o.status === filterStatus).map(o => {
           const actionDef = NEXT_ACTIONS[o.status];
           return (
             <OrderCard

@@ -286,6 +286,7 @@ export default function OrderDetail() {
                       type="button"
                       className="btn secondary"
                       style={{ width: 'auto', minWidth: 32, padding: '4px 8px', fontSize: 13 }}
+                      title={threadCollapsed ? t('Expand replies') : t('Collapse replies')}
                       onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleCommentThread(comment.id); }}
                     >
                       {threadCollapsed ? '+' : '−'}
@@ -507,6 +508,7 @@ export default function OrderDetail() {
             type="button"
             className="btn secondary"
             style={{ width: 'auto', minWidth: 32, padding: '4px 8px', fontSize: 14, lineHeight: 1 }}
+            title={commentsCollapsed ? t('Expand comments') : t('Collapse comments')}
             onClick={toggleCommentsCollapsed}
           >
             {commentsCollapsed ? '+' : '−'}

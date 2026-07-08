@@ -13,6 +13,10 @@ const WORKFLOW_TRANSITIONS = {
   Delivered:             ['UserConfirmed', 'SystemDone'],
   UserConfirmed:         ['SystemDone'],
   Completed:             ['UserConfirmed', 'SystemDone'],
+  ShippingBack:          ['ReadyForDelivery', 'Delivered'],
+  ReadyForDelivery:      ['PendingForDelivery', 'BeingDelivered'],
+  PendingForDelivery:    ['BeingDelivered'],
+  BeingDelivered:        ['Delivered'],
 };
 
 function OrderDetails({ order, allOrders, refresh }) {
@@ -22,11 +26,25 @@ function OrderDetails({ order, allOrders, refresh }) {
   const [replyToId, setReplyToId] = useState(null);
   const [commentBusy, setCommentBusy] = useState(false);
   const [comments, setComments] = useState(order.comments || []);
+  const [commentsCollapsed, setCommentsCollapsed] = useState(false);
+  const [collapsedComments, setCollapsedComments] = useState({});
   const [loadingComments, setLoadingComments] = useState(false);
 
   useEffect(() => {
     setComments(order.comments || []);
   }, [order.id, order.comments]);
+
+  useEffect(() => {
+    if (!comments || comments.length === 0) return;
+    const parentIds = new Set(comments.filter(c => c.parent_id != null).map(c => c.parent_id));
+    setCollapsedComments(prev => {
+      const next = { ...prev };
+      parentIds.forEach(id => {
+        if (next[id] === undefined) next[id] = true;
+      });
+      return next;
+    });
+  }, [comments]);
 
   useEffect(() => {
     if ((!order.comments || order.comments.length === 0) && order.has_opening_comments) {
@@ -143,6 +161,28 @@ function OrderDetails({ order, allOrders, refresh }) {
     event.stopPropagation();
   };
 
+  const toggleCommentsCollapsed = () => setCommentsCollapsed(prev => !prev);
+
+  const getDescendantCommentIds = (commentId) => {
+    const directChildren = (comments || []).filter(c => (c.parent_id || null) === commentId);
+    return directChildren.reduce((all, child) => {
+      return all.concat(child.id, getDescendantCommentIds(child.id));
+    }, []);
+  };
+
+  const toggleCommentThread = (commentId) => {
+    setCollapsedComments(prev => {
+      const currentlyCollapsed = !!prev[commentId];
+      const next = { ...prev, [commentId]: !currentlyCollapsed };
+      if (currentlyCollapsed) {
+        getDescendantCommentIds(commentId).forEach(id => {
+          next[id] = false;
+        });
+      }
+      return next;
+    });
+  };
+
   const renderComments = (parentId = null, depth = 0) => {
     const items = (comments || []).filter(c => (c.parent_id || null) === parentId);
     if (!items.length) return null;
@@ -151,11 +191,27 @@ function OrderDetails({ order, allOrders, refresh }) {
         {items.map(comment => {
           const author = comment.author_nickname || comment.real_name || comment.mobile || t('Customer');
           const createdAt = comment.created_at ? new Date(comment.created_at).toLocaleString() : '';
+          const children = (comments || []).filter(c => (c.parent_id || null) === comment.id);
+          const hasChildren = children.length > 0;
+          const threadCollapsed = !!collapsedComments[comment.id];
           return (
             <div key={comment.id} style={{ marginLeft: depth * 10, padding: 10, border: '1px solid var(--border)', borderRadius: 8, background: depth === 0 ? '#fafafa' : '#fff' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6, alignItems: 'center' }}>
                 <strong>{author}</strong>
-                <span className="muted" style={{ fontSize: 12 }}>{createdAt}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="muted" style={{ fontSize: 12 }}>{createdAt}</span>
+                  {hasChildren && depth === 0 && (
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      style={{ width: 'auto', minWidth: 32, padding: '4px 8px', fontSize: 13 }}
+                      title={threadCollapsed ? t('Expand replies') : t('Collapse replies')}
+                      onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleCommentThread(comment.id); }}
+                    >
+                      {threadCollapsed ? '+' : '−'}
+                    </button>
+                  )}
+                </div>
               </div>
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{comment.content}</div>
               <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -202,7 +258,11 @@ function OrderDetails({ order, allOrders, refresh }) {
                   </div>
                 </div>
               )}
-              {renderComments(comment.id, depth + 1)}
+              {!threadCollapsed ? renderComments(comment.id, depth + 1) : (
+                hasChildren && (
+                  <div className="muted" style={{ marginTop: 8, fontSize: 13 }}>{t('Replies folded')}</div>
+                )
+              )}
             </div>
           );
         })}
@@ -336,9 +396,24 @@ function OrderDetails({ order, allOrders, refresh }) {
         </div>
       )}
       <div className="card" style={{ marginTop: 12, padding: 12, background: '#fff' }}>
-        <div className="label" style={{ fontSize: 11 }}>{t('COMMENTS')}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <div className="label" style={{ fontSize: 11 }}>{t('COMMENTS')}</div>
+          {hasComments && (
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ width: 'auto', minWidth: 32, padding: '4px 8px', fontSize: 13, lineHeight: 1 }}
+              title={commentsCollapsed ? t('Expand comments') : t('Collapse comments')}
+              onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleCommentsCollapsed(); }}
+            >
+              {commentsCollapsed ? '+' : '−'}
+            </button>
+          )}
+        </div>
         {loadingComments ? (
           <div className="muted" style={{ marginTop: 8 }}>{t('Loading...')}</div>
+        ) : commentsCollapsed ? (
+          <div className="muted" style={{ marginTop: 8 }}>{t('Comments folded')}</div>
         ) : hasComments ? (
           renderComments()
         ) : (
@@ -379,6 +454,8 @@ function OrderDetails({ order, allOrders, refresh }) {
 const ALL_STATUSES = [
   'OrderPaid', 'PendingForBid', 'PendingForManufacture', 'ManufacturingAccept',
   'UnderManufacturing', 'ManufactureDone', 'ShippingBack', 'Delivered',
+  'ReadyForDelivery',
+  'PendingForDelivery', 'BeingDelivered',
   'CheckupPaid', 'PendingForOrder', 'PendingForPayment', 'Finalised',
   'Processing', 'Completed', 'Cancelled', 'SystemDone',
 ];
@@ -453,6 +530,16 @@ export default function AdminOrders() {
     } finally { setBusy(null); setConfirmAction(null); }
   };
 
+  const releaseForDelivery = async (id) => {
+    setBusy(id + 'release');
+    try {
+      await api(`/api/admin/orders/${id}/release-for-delivery`, { method: 'POST' });
+      load();
+    } catch (e) {
+      alert(e?.data?.error || e.message);
+    } finally { setBusy(null); }
+  };
+
   const upload = async (id) => {
     const body = Object.fromEntries(Object.entries(form).map(([k, v]) => [k, v === '' ? null : Number(v)]));
     await api(`/api/orders/${id}/checkup/upload`, { method: 'POST', body });
@@ -491,10 +578,10 @@ export default function AdminOrders() {
               />
             </label>
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button className="btn" style={{ flex: 1, background: '#2563eb' }} disabled={!!busy} onClick={confirmPublish}>
+              <button className="btn" style={{ flex: 1, padding: '10px 16px', fontSize: 16, background: '#2563eb' }} disabled={!!busy} onClick={confirmPublish}>
                 {busy ? t('Publishing…') : t('Publish')}
               </button>
-              <button className="btn secondary" style={{ flex: 1 }} onClick={() => setPublishForm(null)}>
+              <button className="btn secondary" style={{ flex: 1, padding: '10px 16px', fontSize: 16 }} onClick={() => setPublishForm(null)}>
                 {t('Form.Cancel')}
               </button>
             </div>
@@ -514,13 +601,13 @@ export default function AdminOrders() {
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 className="btn"
-                style={{ flex: 1, background: confirmAction.status === 'Cancelled' ? '#dc2626' : undefined }}
+                style={{ flex: 1, padding: '10px 16px', fontSize: 16, background: confirmAction.status === 'Cancelled' ? '#dc2626' : undefined }}
                 disabled={!!busy}
                 onClick={() => setStatus(confirmAction.orderId, confirmAction.status)}
               >
                 {busy ? t('Processing…') : t('Confirm')}
               </button>
-              <button className="btn secondary" style={{ flex: 1 }} onClick={() => setConfirmAction(null)}>
+              <button className="btn secondary" style={{ flex: 1, padding: '10px 16px', fontSize: 16 }} onClick={() => setConfirmAction(null)}>
                 {t('Form.Cancel')}
               </button>
             </div>
@@ -582,7 +669,7 @@ export default function AdminOrders() {
                 {o.status === 'OrderPaid' && o.module === 'espectacles' && (
                     <button
                     className="btn"
-                    style={{ width: 'auto', padding: '4px 14px', fontSize: 13, background: '#2563eb' }}
+                    style={{ minWidth: 140, width: 'auto', padding: '8px 16px', fontSize: 16, background: '#2563eb' }}
                     disabled={!!busy}
                     onClick={() => openPublish(o)}
                   >
@@ -594,7 +681,7 @@ export default function AdminOrders() {
                 {o.status === 'PendingForBid' && o.module === 'espectacles' && (
                     <button
                     className="btn secondary"
-                    style={{ width: 'auto', padding: '4px 12px', fontSize: 13 }}
+                    style={{ minWidth: 140, width: 'auto', padding: '8px 16px', fontSize: 16 }}
                     disabled={!!busy}
                     onClick={() => openEditPrice(o)}
                   >
@@ -607,7 +694,7 @@ export default function AdminOrders() {
                   <button
                     key={target}
                     className="btn secondary"
-                    style={{ width: 'auto', padding: '4px 12px', fontSize: 13 }}
+                    style={{ minWidth: 140, width: 'auto', padding: '8px 16px', fontSize: 16 }}
                     disabled={!!busy}
                     onClick={() => setStatus(o.id, target)}
                   >
@@ -615,26 +702,50 @@ export default function AdminOrders() {
                   </button>
                 ))}
 
-                {/* Cancel */}
-                <button
-                  className="btn secondary"
-                  style={{ width: 'auto', padding: '4px 12px', fontSize: 13, color: '#dc2626', borderColor: '#dc2626' }}
-                  disabled={!!busy}
-                  onClick={() => setConfirmAction({ orderId: o.id, orderCode: o.order_code, status: 'Cancelled', label: 'Cancel Order' })}
-                >
-                  ✕ {t('Form.Cancel')}
-                </button>
+                {/* Cancel — hidden if manufacturer has taken the spectacles order */}
+                {!(o.module === 'espectacles' && o.manufacturer_vendor_id) && (
+                  <button
+                    className="btn secondary"
+                    style={{ minWidth: 140, width: 'auto', padding: '8px 16px', fontSize: 16, color: '#dc2626', borderColor: '#dc2626' }}
+                    disabled={!!busy}
+                    onClick={() => setConfirmAction({ orderId: o.id, orderCode: o.order_code, status: 'Cancelled', label: 'Cancel Order' })}
+                  >
+                    ✕ {t('Form.Cancel')}
+                  </button>
+                )}
 
                 {/* Close (SystemDone) — super_admin only */}
                 {isSuperAdmin && (
                   <button
                     className="btn secondary"
-                    style={{ width: 'auto', padding: '4px 12px', fontSize: 13 }}
+                    style={{ minWidth: 140, width: 'auto', padding: '8px 16px', fontSize: 16 }}
                     disabled={!!busy}
                     onClick={() => setConfirmAction({ orderId: o.id, orderCode: o.order_code, status: 'SystemDone', label: 'Close Order' })}
                     >
                     ✓ {t('Close')}
                   </button>
+                )}
+
+                {/* ReadyForDelivery actions: platform or release to partner */}
+                {o.status === 'ReadyForDelivery' && (
+                  <>
+                    <button
+                      className="btn secondary"
+                      style={{ minWidth: 140, width: 'auto', padding: '8px 16px', fontSize: 16 }}
+                      disabled={!!busy}
+                      onClick={() => setStatus(o.id, 'BeingDelivered')}
+                    >
+                      🚚 {t('Being Delivered (Platform)')}
+                    </button>
+                    <button
+                      className="btn"
+                      style={{ minWidth: 140, width: 'auto', padding: '8px 16px', fontSize: 16, background: '#047857', color: '#fff' }}
+                      disabled={!!busy}
+                      onClick={() => releaseForDelivery(o.id)}
+                    >
+                      📤 {t('Release for Delivery')}
+                    </button>
+                  </>
                 )}
               </div>
             )}

@@ -5,6 +5,40 @@ const { authRequired, requireAdmin, requireRole } = require('../auth');
 const { ALL_ROLES, VENDOR_ROLES } = require('../roles');
 const { getConfig, setConfig, allConfig } = require('../configStore');
 const { canTransition } = require('../orderStates');
+const config = require('../config');
+const http = require('http');
+const https = require('https');
+const { URL } = require('url');
+
+function httpPostJson(urlStr, body, headers = {}, timeout = 10000) {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = new URL(urlStr);
+      const data = JSON.stringify(body || {});
+      const opts = {
+        method: 'POST',
+        hostname: url.hostname,
+        port: url.port || (url.protocol === 'https:' ? 443 : 80),
+        path: url.pathname + (url.search || ''),
+        headers: Object.assign({ 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }, headers),
+        timeout,
+      };
+      const lib = url.protocol === 'https:' ? https : http;
+      const req = lib.request(opts, (res) => {
+        let out = '';
+        res.setEncoding('utf8');
+        res.on('data', d => out += d);
+        res.on('end', () => {
+          try { const json = out ? JSON.parse(out) : null; resolve({ statusCode: res.statusCode, body: json }); }
+          catch (e) { resolve({ statusCode: res.statusCode, body: out }); }
+        });
+      });
+      req.on('error', reject);
+      req.write(data);
+      req.end();
+    } catch (e) { reject(e); }
+  });
+}
 
 function isValidMobile(m) {
   if (typeof m !== 'string') return false;
@@ -472,7 +506,11 @@ router.get('/orders', authRequired, requireAdmin, (req, res) => {
 const TERMINAL_STATES = ['Cancelled', 'SystemDone'];
 const ADMIN_FORCE_TARGETS = ['Cancelled', 'SystemDone'];
 
-router.patch('/orders/:id/status', authRequired, requireAdmin, (req, res) => {
+router.patch('/orders/:id/status', authRequired, (req, res) => {
+  // allow admin, super_admin, or platform staff to change statuses via this endpoint
+  if (!req.user || !['admin', 'super_admin', 'platform_staff'].includes(req.user.role))
+    return res.status(403).json({ error: 'forbidden' });
+
   const { status, vendor_price } = req.body || {};
   if (!status) return res.status(400).json({ error: 'status_required' });
   const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
@@ -505,6 +543,53 @@ router.patch('/orders/:id/status', authRequired, requireAdmin, (req, res) => {
   const updated = db.prepare('SELECT * FROM orders WHERE id = ?').get(o.id);
   updated.meta = updated.meta_json ? JSON.parse(updated.meta_json) : null;
   res.json({ order: updated });
+});
+
+// POST /api/admin/orders/:id/release-for-delivery
+// Notify shipping partner and set order to PendingForDelivery
+router.post('/orders/:id/release-for-delivery', authRequired, (req, res) => {
+  if (!req.user || !['admin', 'super_admin', 'platform_staff'].includes(req.user.role))
+    return res.status(403).json({ error: 'forbidden' });
+
+  const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!o) return res.status(404).json({ error: 'not_found' });
+
+  // Only allow from ReadyForDelivery
+  if (o.status !== 'ReadyForDelivery') return res.status(400).json({ error: 'invalid_status' });
+
+  if (!config.shippingPartner.url) return res.status(500).json({ error: 'shipping_partner_not_configured' });
+
+  const payload = {
+    order_id: o.id,
+    order_code: o.order_code,
+    recipient: o.meta_json ? (JSON.parse(o.meta_json).delivery_address || null) : null,
+    meta: o.meta_json ? JSON.parse(o.meta_json) : null,
+  };
+
+  const headers = {};
+  if (config.shippingPartner.apiKey) headers['X-API-KEY'] = config.shippingPartner.apiKey;
+
+  httpPostJson(config.shippingPartner.url, payload, headers).then(result => {
+    if (!result || !result.statusCode || result.statusCode >= 400) {
+      return res.status(502).json({ error: 'shipping_partner_error', detail: result && result.body });
+    }
+
+    // store partner response in meta
+    const meta = o.meta_json ? JSON.parse(o.meta_json) : {};
+    meta.shipping_partner = { released_at: new Date().toISOString(), response: result.body };
+    db.prepare('UPDATE orders SET meta_json = ?, status = ?, updated_at = datetime(\'now\') WHERE id = ?')
+      .run(JSON.stringify(meta), 'PendingForDelivery', o.id);
+    db.prepare(
+      `INSERT INTO admin_audit_logs (actor_user_id, action, target, detail_json) VALUES (?, 'order.release_for_delivery', ?, ?)`
+    ).run(req.user.id, String(o.id), JSON.stringify({ partner_response: result.body }));
+
+    const updated = db.prepare('SELECT * FROM orders WHERE id = ?').get(o.id);
+    updated.meta = updated.meta_json ? JSON.parse(updated.meta_json) : null;
+    res.json({ ok: true, order: updated });
+  }).catch(err => {
+    console.error('Partner request failed', err);
+    res.status(502).json({ error: 'shipping_partner_unreachable' });
+  });
 });
 
 // PATCH /api/admin/orders/:id/vendor-price  { vendor_price } (admin+)

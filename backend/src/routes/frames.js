@@ -12,9 +12,29 @@ function loadFrame(id) {
   return frame;
 }
 
+function canEditFrame(user, frame) {
+  if (!user) return false;
+  if (['admin', 'super_admin'].includes(user.role)) return true;
+  if (user.role === 'spectacle_frame_vendor' && frame?.vendor_user_id === user.id) return true;
+  return false;
+}
+
 // Public list (active only)
 router.get('/', (req, res) => {
   const rows = db.prepare('SELECT * FROM spectacle_frames WHERE active = 1 ORDER BY id').all();
+  for (const r of rows) {
+    r.images = db
+      .prepare('SELECT id, url, sort_order FROM frame_images WHERE frame_id = ? ORDER BY sort_order, id')
+      .all(r.id);
+  }
+  res.json({ frames: rows });
+});
+
+router.get('/my', authRequired, (req, res) => {
+  if (req.user.role !== 'spectacle_frame_vendor' && !['admin', 'super_admin'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  const rows = db.prepare('SELECT * FROM spectacle_frames WHERE active = 1 AND vendor_user_id = ? ORDER BY id').all(req.user.id);
   for (const r of rows) {
     r.images = db
       .prepare('SELECT id, url, sort_order FROM frame_images WHERE frame_id = ? ORDER BY sort_order, id')
@@ -30,12 +50,16 @@ router.get('/:id', (req, res) => {
 });
 
 // Admin CRUD
-router.post('/', authRequired, requireAdmin, (req, res) => {
+router.post('/', authRequired, (req, res) => {
   const { name, code, brand, vendor, base_price, promotion_price, images, vendor_office, vendor_mobile, vendor_address, active } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name_required' });
+  if (!['admin', 'super_admin', 'spectacle_frame_vendor'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  const vendorUserId = req.user.role === 'spectacle_frame_vendor' ? req.user.id : null;
   const info = db
-    .prepare('INSERT INTO spectacle_frames (name, code, brand, vendor, base_price, promotion_price, vendor_office, vendor_mobile, vendor_address, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(name, code || null, brand || null, vendor || null, Number(base_price) || 0, Number(promotion_price) || 0, vendor_office || null, vendor_mobile || null, vendor_address || null, active != null ? (active ? 1 : 0) : 1);
+    .prepare('INSERT INTO spectacle_frames (name, code, brand, vendor_user_id, vendor, base_price, promotion_price, vendor_office, vendor_mobile, vendor_address, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(name, code || null, brand || null, vendorUserId, vendor || null, Number(base_price) || 0, Number(promotion_price) || 0, vendor_office || null, vendor_mobile || null, vendor_address || null, active != null ? (active ? 1 : 0) : 1);
   const id = info.lastInsertRowid;
   if (Array.isArray(images)) {
     const stmt = db.prepare('INSERT INTO frame_images (frame_id, url, sort_order) VALUES (?, ?, ?)');
@@ -44,8 +68,11 @@ router.post('/', authRequired, requireAdmin, (req, res) => {
   res.json({ frame: loadFrame(id) });
 });
 
-router.patch('/:id', authRequired, requireAdmin, (req, res) => {
+router.patch('/:id', authRequired, (req, res) => {
   const { name, code, brand, vendor, base_price, promotion_price, active, images, vendor_office, vendor_mobile, vendor_address } = req.body || {};
+  const frame = loadFrame(req.params.id);
+  if (!frame) return res.status(404).json({ error: 'not_found' });
+  if (!canEditFrame(req.user, frame)) return res.status(403).json({ error: 'forbidden' });
   db.prepare(
     `UPDATE spectacle_frames SET
        name = COALESCE(?, name),
@@ -80,7 +107,10 @@ router.patch('/:id', authRequired, requireAdmin, (req, res) => {
   res.json({ frame: loadFrame(req.params.id) });
 });
 
-router.delete('/:id', authRequired, requireAdmin, (req, res) => {
+router.delete('/:id', authRequired, (req, res) => {
+  const frame = loadFrame(req.params.id);
+  if (!frame) return res.status(404).json({ error: 'not_found' });
+  if (!canEditFrame(req.user, frame)) return res.status(403).json({ error: 'forbidden' });
   db.prepare('UPDATE spectacle_frames SET active = 0 WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });

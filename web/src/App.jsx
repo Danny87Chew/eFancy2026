@@ -21,6 +21,8 @@ import Placeholder from './pages/Placeholder.jsx';
 import Admin from './pages/admin/Admin.jsx';
 import VendorCheckup from './pages/vendor/VendorCheckup.jsx';
 import VendorManufacture from './pages/vendor/VendorManufacture.jsx';
+import VendorFrames from './pages/vendor/VendorFrames.jsx';
+import VendorLenses from './pages/vendor/VendorLenses.jsx';
 import LanguageSelector from './components/LanguageSelector.jsx';
 
 function HomeRoute() {
@@ -30,6 +32,7 @@ function HomeRoute() {
   const vendorRole = (user && VENDOR_ROLES.includes(user.role)) ? user.role : vendorContext?.role;
   if (vendorRole === 'spectacle_checkup_vendor') return <Navigate to="/vendor/checkup" replace />;
   if (vendorRole === 'spectacle_producer_vendor') return <Navigate to="/vendor/manufacture" replace />;
+  if (vendorRole === 'spectacle_lens_vendor' || vendorRole === 'spectacle_frame_vendor') return <Navigate to="/me" replace />;
   return <Home />;
 }
 
@@ -97,22 +100,31 @@ function BottomBar() {
     user.role === 'spectacle_producer_vendor' ||
     vendorContext?.role === 'spectacle_producer_vendor'
   );
-  const isOtherVendor = user && (
-    (VENDOR_ROLES.includes(user.role) && !isCheckupVendor && !isProducerVendor) ||
-    (vendorContext?.role && VENDOR_ROLES.includes(vendorContext.role) && !isCheckupVendor && !isProducerVendor)
+  const isLensVendor = user && (
+    user.role === 'spectacle_lens_vendor' ||
+    vendorContext?.role === 'spectacle_lens_vendor'
   );
-  const isVendorLike = isCheckupVendor || isProducerVendor || isOtherVendor;
+  const isFrameVendor = user && (
+    user.role === 'spectacle_frame_vendor' ||
+    vendorContext?.role === 'spectacle_frame_vendor'
+  );
+  const isOtherVendor = user && (
+    (VENDOR_ROLES.includes(user.role) && !isCheckupVendor && !isProducerVendor && !isLensVendor && !isFrameVendor) ||
+    (vendorContext?.role && VENDOR_ROLES.includes(vendorContext.role) && !isCheckupVendor && !isProducerVendor && !isLensVendor && !isFrameVendor)
+  );
+  const isVendorLike = isCheckupVendor || isProducerVendor || isLensVendor || isFrameVendor || isOtherVendor;
   const isAdminLike = isAdmin || isVendorLike;
+  const showCartTab = !isVendorLike && !isAdmin;
   return (
     <nav className="bottombar">
-      {!isAdminLike && (
-        <NavLink to="/cart" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
-          <span className="icon">🛒</span>{t('Cart')}
-        </NavLink>
-      )}
-      {!isAdminLike && (
+      {!isAdmin && (
         <NavLink to="/orders" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
           <span className="icon">📦</span>{t('Orders')}
+        </NavLink>
+      )}
+      {showCartTab && (
+        <NavLink to="/cart" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+          <span className="icon">🛒</span>{t('Cart')}
         </NavLink>
       )}
       {isAdmin && (
@@ -128,6 +140,16 @@ function BottomBar() {
       {!isAdmin && !isCheckupVendor && isProducerVendor && (
         <NavLink to="/vendor/manufacture" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
           <span className="icon">🛠️</span>{t('Administration')}
+        </NavLink>
+      )}
+      {!isAdmin && isFrameVendor && (
+        <NavLink to="/vendor/frames" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+          <span className="icon">🕶️</span>{t('Frames')}
+        </NavLink>
+      )}
+      {!isAdmin && isLensVendor && (
+        <NavLink to="/vendor/lenses" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+          <span className="icon">🔍</span>{t('Lens')}
         </NavLink>
       )}
       <NavLink to="/me" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
@@ -151,6 +173,7 @@ export default function App() {
     (vendorContext?.role && VENDOR_ROLES.includes(vendorContext.role))
   ));
   const isAdminLike = isAdmin || isVendorLike;
+  const showCartTab = !isVendorLike && !isAdmin;
 
   return (
     <div className="app">
@@ -185,11 +208,13 @@ export default function App() {
           <Route path="/eservices" element={<Protected><Placeholder title={t('eServices')} /></Protected>} />
           <Route path="/orders" element={<Protected><Orders /></Protected>} />
           <Route path="/orders/:id" element={<Protected><OrderDetail /></Protected>} />
-          <Route path="/cart" element={<Protected><Cart /></Protected>} />
+          <Route path="/cart" element={<Protected>{isVendorLike ? <Navigate to="/me" replace /> : <Cart />}</Protected>} />
           <Route path="/me" element={<Protected><Me /></Protected>} />
           <Route path="/admin/*" element={<Protected><Admin /></Protected>} />
           <Route path="/vendor/checkup" element={<Protected><VendorCheckup /></Protected>} />
           <Route path="/vendor/manufacture" element={<Protected><VendorManufacture /></Protected>} />
+          <Route path="/vendor/frames" element={<Protected><VendorFrames /></Protected>} />
+          <Route path="/vendor/lenses" element={<Protected><VendorLenses /></Protected>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

@@ -11,7 +11,10 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const t = localStorage.getItem('efancy_token');
     if (!t) { setLoading(false); return; }
-    api('/api/auth/me').then(d => setUser(d.user)).catch(() => {
+    api('/api/auth/me').then(d => {
+      setUser(d.user);
+      setVendorContext(d.vendor_context || null);
+    }).catch(() => {
       localStorage.removeItem('efancy_token');
     }).finally(() => setLoading(false));
   }, []);

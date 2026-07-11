@@ -41,6 +41,7 @@ function init() {
     name TEXT NOT NULL,
     code TEXT,
     brand TEXT,
+    vendor_user_id INTEGER,
     base_price REAL NOT NULL DEFAULT 0,
     promotion_price REAL NOT NULL DEFAULT 0,
     vendor_office TEXT,
@@ -54,6 +55,9 @@ function init() {
   const spectacleFrameCols = db.prepare(`PRAGMA table_info(spectacle_frames)`).all().map(c => c.name);
   if (!spectacleFrameCols.includes('code')) {
     db.prepare('ALTER TABLE spectacle_frames ADD COLUMN code TEXT').run();
+  }
+  if (!spectacleFrameCols.includes('vendor_user_id')) {
+    db.prepare('ALTER TABLE spectacle_frames ADD COLUMN vendor_user_id INTEGER').run();
   }
 
   db.exec(`
@@ -70,6 +74,7 @@ function init() {
     brand TEXT,
     name TEXT NOT NULL UNIQUE,
     code TEXT,
+    vendor_user_id INTEGER,
     price_multiplier REAL NOT NULL DEFAULT 1.0,
     vendor_name TEXT,
     vendor_office TEXT,
@@ -77,8 +82,14 @@ function init() {
     vendor_address TEXT,
     active INTEGER NOT NULL DEFAULT 1
   );
+  `);
   
+  const lensBrandCols = db.prepare(`PRAGMA table_info(lens_brands)`).all().map(c => c.name);
+  if (!lensBrandCols.includes('vendor_user_id')) {
+    db.prepare('ALTER TABLE lens_brands ADD COLUMN vendor_user_id INTEGER').run();
+  }
 
+  db.exec(`
   CREATE TABLE IF NOT EXISTS partner_shops (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,

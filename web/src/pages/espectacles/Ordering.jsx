@@ -44,7 +44,17 @@ export default function Ordering() {
     brand_id: null,
   });
 
-  useEffect(() => { api('/api/lens-brands').then(d => setBrands(d.brands)); }, []);
+  useEffect(() => {
+    api('/api/lens-brands').then((d) => {
+      const nextBrands = d.brands || [];
+      setBrands(nextBrands);
+      setLens((prev) => {
+        if (prev?.brand_id != null) return prev;
+        const genericBrand = nextBrands.find((b) => (b.brand || b.name || '').toLowerCase() === 'generic');
+        return genericBrand ? { ...prev, brand_id: genericBrand.id } : prev;
+      });
+    });
+  }, []);
 
   if (!frame || !eyesight) {
     return (

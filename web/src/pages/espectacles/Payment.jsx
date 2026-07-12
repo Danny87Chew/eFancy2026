@@ -200,6 +200,7 @@ export default function Payment() {
   const [done, setDone] = useState(false);
   const [err, setErr] = useState('');
   const [paynow, setPaynow] = useState(null);
+  const [showPaynow, setShowPaynow] = useState(false);
   const [paynowTriggered, setPaynowTriggered] = useState(false);
   const [window, setWindow] = useState(12);
   const [cardWarn, setCardWarn] = useState(false);
@@ -320,13 +321,15 @@ export default function Payment() {
         // show QR and wait for user confirmation
         setOrder(r.order);
         setPaynow(r.paynow);
+        setShowPaynow(true);
       } else {
-        setOrder(r.order); setDone(true); reset();
+        setOrder(r.order); setDone(true); reset(); setPaynow(null); setShowPaynow(false);
       }
     } catch (e) {
       setErr('Payment failed: ' + e.message);
       if (paymentMethod === 'paynow') {
         setPaynowTriggered(false);
+        setShowPaynow(false);
       }
     }
     finally { setBusy(false); }
@@ -458,7 +461,13 @@ export default function Payment() {
           cursor: canPay ? 'pointer' : 'not-allowed',
         }}
         disabled={!canPay}
-        onClick={pay}
+        onClick={() => {
+          if (method === 'paynow' && paynow) {
+            setShowPaynow(true);
+            return;
+          }
+          pay();
+        }}
       >
         {busy ? t('Processing…') : t('Pay Now', { amount: fmt(order.total) })}
       </button>
@@ -483,10 +492,10 @@ export default function Payment() {
           </div>
         </div>
       )}
-      {paynow && (
-        <div className="modal-backdrop" onClick={() => setPaynow(null)}>
+      {showPaynow && paynow && (
+        <div className="modal-backdrop" onClick={() => setShowPaynow(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
-            <button className="modal-close" aria-label="Close" onClick={() => setPaynow(null)}>×</button>
+            <button className="modal-close" aria-label="Close" onClick={() => setShowPaynow(false)}>×</button>
             <div style={{ padding: 20, textAlign: 'center' }}>
               <h3 style={{ marginTop: 0 }}>{t('PayNow')}</h3>
               <div style={{ margin: '12px 0' }}>
@@ -496,13 +505,13 @@ export default function Payment() {
               </div>
               <div className="muted" style={{ marginBottom: 12 }}>{t('An extra payment of {{amount}} is required. You\'ll be taken to the payment page after confirming.', { amount: fmt(order.total) })}</div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                <button className="btn secondary" style={{ fontSize: 17 }} onClick={() => setPaynow(null)}>{t('Close')}</button>
+                <button className="btn secondary" style={{ fontSize: 17 }} onClick={() => setShowPaynow(false)}>{t('Close')}</button>
                 <button className="btn" style={{ fontSize: 17 }} onClick={async () => {
                   try {
                     setBusy(true);
                     await api(`/api/payments/${paynow.payment_id}/confirm`, { method: 'POST' });
                     const d = await api(`/api/orders/${id}`);
-                    setOrder(d.order); setDone(true); reset(); setPaynow(null);
+                    setOrder(d.order); setDone(true); reset(); setPaynow(null); setShowPaynow(false);
                   } catch (e) { setErr('Confirm failed: ' + e.message); }
                   finally { setBusy(false); }
                 }}>{t('I Have Paid') || 'I Have Paid'}</button>

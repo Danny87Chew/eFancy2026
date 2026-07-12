@@ -18,9 +18,9 @@ function getVendorDefaults(user, vendorContext) {
 
   const fromContext = {
     vendor_name: vendorContext?.merchant_name || '',
-    vendor_office: vendorContext?.vendor_office || vendorContext?.office_number || vendorContext?.contact_number || '',
-    vendor_mobile: vendorContext?.vendor_mobile || vendorContext?.mobile_number || '',
-    vendor_address: vendorContext?.vendor_address || '',
+    vendor_office: vendorContext?.office_number || vendorContext?.contact_number || '',
+    vendor_mobile: vendorContext?.mobile_number || '',
+    vendor_address: vendorContext?.address || '',
   };
 
   return {
@@ -39,6 +39,8 @@ export default function VendorFrames() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...initialForm, ...getVendorDefaults(user, vendorContext) });
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ ...initialForm, ...getVendorDefaults(user, vendorContext) });
   const [error, setError] = useState('');
 
   const loadFrames = async () => {
@@ -48,12 +50,61 @@ export default function VendorFrames() {
       setFrames(data.frames || []);
     } catch (e) {
       console.error(e);
+      setFrames([]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadFrames(); }, []);
+  const startEditFrame = (frame) => {
+    setEditingId(frame.id);
+    setEditForm({
+      ...initialForm,
+      ...getVendorDefaults(user, vendorContext),
+      name: frame.name || '',
+      code: frame.code || '',
+      brand: frame.brand || '',
+      base_price: String(frame.base_price || ''),
+      promotion_price: String(frame.promotion_price || ''),
+      images: (frame.images || []).map((i) => i.url).join('\n'),
+    });
+    setError('');
+  };
+
+  const cancelEditFrame = () => {
+    setEditingId(null);
+    setEditForm({ ...initialForm, ...getVendorDefaults(user, vendorContext) });
+    setError('');
+  };
+
+  const saveEditFrame = async () => {
+    if (!editingId || !editForm.name.trim()) return;
+    setSaving(true);
+    setError('');
+    try {
+      await api(`/api/frames/${editingId}`, {
+        method: 'PATCH',
+        body: {
+          name: editForm.name.trim(),
+          code: editForm.code.trim() || undefined,
+          brand: editForm.brand.trim() || undefined,
+          base_price: Number(editForm.base_price) || 0,
+          promotion_price: Number(editForm.promotion_price) || 0,
+          images: editForm.images.split('\n').map((line) => line.trim()).filter(Boolean),
+        },
+      });
+      cancelEditFrame();
+      await loadFrames();
+    } catch (e) {
+      setError(e?.data?.error || 'request_failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFrames();
+  }, [user?.id, user?.role, vendorContext?.id, vendorContext?.role]);
 
   useEffect(() => {
     if (!user && !vendorContext) return;
@@ -77,10 +128,6 @@ export default function VendorFrames() {
           base_price: Number(form.base_price) || 0,
           promotion_price: Number(form.promotion_price) || 0,
           images: form.images.split('\n').map((line) => line.trim()).filter(Boolean),
-          vendor_name: form.vendor_name.trim() || undefined,
-          vendor_office: form.vendor_office.trim() || undefined,
-          vendor_mobile: form.vendor_mobile.trim() || undefined,
-          vendor_address: form.vendor_address.trim() || undefined,
         },
       });
       setForm({ ...initialForm, ...getVendorDefaults(user, vendorContext) });
@@ -97,7 +144,7 @@ export default function VendorFrames() {
     <div>
       <h1 className="h1">{t('Available Frame(s)')}</h1>
       <div style={{ marginTop: 12, marginBottom: 20 }}>
-        <button className="btn" onClick={() => setShowForm((prev) => !prev)}>
+        <button className="btn" onClick={() => setShowForm((prev) => !prev)} disabled={saving || editingId !== null}>
           {showForm ? t('Close') : t('Add Frame')}
         </button>
       </div>
@@ -107,21 +154,46 @@ export default function VendorFrames() {
           <label className="field">{t('Brand')}<input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} /></label>
           <label className="field">{t('Frame Name')}<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
           <label className="field">{t('Frame Code')}<input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></label>
-          <label className="field">{t('Vendor name')}<input value={form.vendor_name} onChange={(e) => setForm({ ...form, vendor_name: e.target.value })} /></label>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <label className="field" style={{ flex: 1 }}>{t('Vendor office number')}<input value={form.vendor_office} onChange={(e) => setForm({ ...form, vendor_office: e.target.value })} /></label>
-            <label className="field" style={{ flex: 1 }}>{t('Vendor mobile number')}<input value={form.vendor_mobile} onChange={(e) => setForm({ ...form, vendor_mobile: e.target.value })} /></label>
-          </div>
-          <label className="field">{t('Vendor address')}<textarea rows="2" value={form.vendor_address} onChange={(e) => setForm({ ...form, vendor_address: e.target.value })} /></label>
           <div className="row" style={{ gap: 12 }}>
             <label className="field" style={{ flex: 1 }}>{t('Base price (S$)')}<input type="number" min="0" step="0.01" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: e.target.value })} /></label>
             <label className="field" style={{ flex: 1 }}>{t('Promotion price (S$)')}<input type="number" min="0" step="0.01" value={form.promotion_price} onChange={(e) => setForm({ ...form, promotion_price: e.target.value })} /></label>
           </div>
+          <label className="field" style={{ opacity: 0.7 }}>{t('Vendor name')}<input value={form.vendor_name} disabled /></label>
+          <div className="row" style={{ gap: 12 }}>
+            <label className="field" style={{ flex: 1, opacity: 0.7 }}>{t('Vendor office number')}<input value={form.vendor_office} disabled /></label>
+            <label className="field" style={{ flex: 1, opacity: 0.7 }}>{t('Vendor mobile number')}<input value={form.vendor_mobile} disabled /></label>
+          </div>
+          <label className="field" style={{ opacity: 0.7 }}>{t('Vendor address')}<textarea rows="2" value={form.vendor_address} disabled /></label>
           <label className="field">{t('Image URLs (one per line)')}<textarea rows="3" value={form.images} onChange={(e) => setForm({ ...form, images: e.target.value })} /></label>
           {error && <div className="error" style={{ marginBottom: 12 }}>{t(error)}</div>}
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn secondary" onClick={() => { setShowForm(false); setForm(initialForm); }}>{t('Form.Cancel')}</button>
             <button className="btn" onClick={createFrame} disabled={saving}>{saving ? t('Saving…') : t('Add Frame')}</button>
+          </div>
+        </div>
+      )}
+
+      {editingId && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h2>{t('Edit Frame')}</h2>
+          <label className="field">{t('Brand')}<input value={editForm.brand} onChange={(e) => setEditForm({ ...editForm, brand: e.target.value })} /></label>
+          <label className="field">{t('Frame Name')}<input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></label>
+          <label className="field">{t('Frame Code')}<input value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: e.target.value })} /></label>
+          <div className="row" style={{ gap: 12 }}>
+            <label className="field" style={{ flex: 1 }}>{t('Base price (S$)')}<input type="number" min="0" step="0.01" value={editForm.base_price} onChange={(e) => setEditForm({ ...editForm, base_price: e.target.value })} /></label>
+            <label className="field" style={{ flex: 1 }}>{t('Promotion price (S$)')}<input type="number" min="0" step="0.01" value={editForm.promotion_price} onChange={(e) => setEditForm({ ...editForm, promotion_price: e.target.value })} /></label>
+          </div>
+          <label className="field" style={{ opacity: 0.7 }}>{t('Vendor name')}<input value={editForm.vendor_name} disabled /></label>
+          <div className="row" style={{ gap: 12 }}>
+            <label className="field" style={{ flex: 1, opacity: 0.7 }}>{t('Vendor office number')}<input value={editForm.vendor_office} disabled /></label>
+            <label className="field" style={{ flex: 1, opacity: 0.7 }}>{t('Vendor mobile number')}<input value={editForm.vendor_mobile} disabled /></label>
+          </div>
+          <label className="field" style={{ opacity: 0.7 }}>{t('Vendor address')}<textarea rows="2" value={editForm.vendor_address} disabled /></label>
+          <label className="field">{t('Image URLs (one per line)')}<textarea rows="3" value={editForm.images} onChange={(e) => setEditForm({ ...editForm, images: e.target.value })} /></label>
+          {error && <div className="error" style={{ marginBottom: 12 }}>{t(error)}</div>}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn secondary" onClick={cancelEditFrame}>{t('Cancel')}</button>
+            <button className="btn" onClick={saveEditFrame} disabled={saving}>{saving ? t('Saving…') : t('Save Changes')}</button>
           </div>
         </div>
       )}
@@ -142,6 +214,9 @@ export default function VendorFrames() {
               <div className="muted" style={{ marginTop: 6 }}>
                 {t('Base price (S$)')}: {frame.base_price || 0} · {t('Promotion price (S$)')}: {frame.promotion_price || 0}
               </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+              <button className="btn secondary" onClick={() => startEditFrame(frame)} disabled={saving || editingId !== null || showForm}>{t('Edit')}</button>
             </div>
           </div>
         ))}

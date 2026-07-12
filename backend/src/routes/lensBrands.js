@@ -2,10 +2,28 @@ const router = require('express').Router();
 const db = require('../db');
 const { authRequired, requireAdmin } = require('../auth');
 
+function resolveVendorOwner(user) {
+  const ownerRow = db.prepare(
+    `SELECT vs.vendor_user_id, vp.merchant_name
+     FROM vendor_staff vs
+     LEFT JOIN vendor_profiles vp ON vp.user_id = vs.vendor_user_id
+     WHERE vs.staff_mobile = ? LIMIT 1`
+  ).get(user.mobile);
+  if (ownerRow) {
+    return { vendorUserId: ownerRow.vendor_user_id, vendorName: ownerRow.merchant_name || null };
+  }
+  const profile = db.prepare('SELECT merchant_name FROM vendor_profiles WHERE user_id = ?').get(user.id);
+  return { vendorUserId: user.id, vendorName: profile?.merchant_name || null };
+}
+
 function canEditLensBrand(user, brand) {
   if (!user) return false;
   if (['admin', 'super_admin'].includes(user.role)) return true;
-  if (user.role === 'spectacle_lens_vendor' && brand?.vendor_user_id === user.id) return true;
+  if (user.role !== 'spectacle_lens_vendor') return false;
+  const { vendorUserId, vendorName } = resolveVendorOwner(user);
+  if (brand?.vendor_user_id === user.id) return true;
+  if (brand?.vendor_user_id === vendorUserId) return true;
+  if (vendorName && brand?.vendor_name === vendorName) return true;
   return false;
 }
 
@@ -23,7 +41,13 @@ router.get('/my', authRequired, (req, res) => {
   if (req.user.role !== 'spectacle_lens_vendor' && !['admin', 'super_admin'].includes(req.user.role)) {
     return res.status(403).json({ error: 'forbidden' });
   }
-  const rows = db.prepare('SELECT * FROM lens_brands WHERE active = 1 AND vendor_user_id = ? ORDER BY name').all(req.user.id);
+  const { vendorUserId, vendorName } = resolveVendorOwner(req.user);
+  const query = vendorName
+    ? 'SELECT * FROM lens_brands WHERE active = 1 AND (vendor_user_id = ? OR vendor_name = ?) ORDER BY name'
+    : 'SELECT * FROM lens_brands WHERE active = 1 AND vendor_user_id = ? ORDER BY name';
+  const rows = vendorName
+    ? db.prepare(query).all(vendorUserId, vendorName)
+    : db.prepare(query).all(vendorUserId);
   res.json({ brands: rows });
 });
 
@@ -34,7 +58,7 @@ router.post('/', authRequired, (req, res) => {
   if (!['admin', 'super_admin', 'spectacle_lens_vendor'].includes(req.user.role)) {
     return res.status(403).json({ error: 'forbidden' });
   }
-  const vendorUserId = req.user.role === 'spectacle_lens_vendor' ? req.user.id : null;
+  const vendorUserId = req.user.role === 'spectacle_lens_vendor' ? resolveVendorOwner(req.user).vendorUserId : null;
   const info = db
     .prepare('INSERT INTO lens_brands (brand, name, code, vendor_user_id, price_multiplier, vendor_name, vendor_office, vendor_mobile, vendor_address, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
     .run(brand || null, effectiveName, code || null, vendorUserId, Number(price_multiplier) || 1, vendor_name || null, vendor_office || null, vendor_mobile || null, vendor_address || null, active != null ? (active ? 1 : 0) : 1);

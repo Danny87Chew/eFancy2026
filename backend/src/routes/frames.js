@@ -12,10 +12,28 @@ function loadFrame(id) {
   return frame;
 }
 
+function resolveVendorOwner(user) {
+  const ownerRow = db.prepare(
+    `SELECT vs.vendor_user_id, vp.merchant_name
+     FROM vendor_staff vs
+     LEFT JOIN vendor_profiles vp ON vp.user_id = vs.vendor_user_id
+     WHERE vs.staff_mobile = ? LIMIT 1`
+  ).get(user.mobile);
+  if (ownerRow) {
+    return { vendorUserId: ownerRow.vendor_user_id, vendorName: ownerRow.merchant_name || null };
+  }
+  const profile = db.prepare('SELECT merchant_name FROM vendor_profiles WHERE user_id = ?').get(user.id);
+  return { vendorUserId: user.id, vendorName: profile?.merchant_name || null };
+}
+
 function canEditFrame(user, frame) {
   if (!user) return false;
   if (['admin', 'super_admin'].includes(user.role)) return true;
-  if (user.role === 'spectacle_frame_vendor' && frame?.vendor_user_id === user.id) return true;
+  if (user.role !== 'spectacle_frame_vendor') return false;
+  const { vendorUserId, vendorName } = resolveVendorOwner(user);
+  if (frame?.vendor_user_id === user.id) return true;
+  if (frame?.vendor_user_id === vendorUserId) return true;
+  if (vendorName && frame?.vendor === vendorName) return true;
   return false;
 }
 
@@ -34,7 +52,13 @@ router.get('/my', authRequired, (req, res) => {
   if (req.user.role !== 'spectacle_frame_vendor' && !['admin', 'super_admin'].includes(req.user.role)) {
     return res.status(403).json({ error: 'forbidden' });
   }
-  const rows = db.prepare('SELECT * FROM spectacle_frames WHERE active = 1 AND vendor_user_id = ? ORDER BY id').all(req.user.id);
+  const { vendorUserId, vendorName } = resolveVendorOwner(req.user);
+  const query = vendorName
+    ? 'SELECT * FROM spectacle_frames WHERE active = 1 AND (vendor_user_id = ? OR vendor = ?) ORDER BY id'
+    : 'SELECT * FROM spectacle_frames WHERE active = 1 AND vendor_user_id = ? ORDER BY id';
+  const rows = vendorName
+    ? db.prepare(query).all(vendorUserId, vendorName)
+    : db.prepare(query).all(vendorUserId);
   for (const r of rows) {
     r.images = db
       .prepare('SELECT id, url, sort_order FROM frame_images WHERE frame_id = ? ORDER BY sort_order, id')
@@ -56,7 +80,7 @@ router.post('/', authRequired, (req, res) => {
   if (!['admin', 'super_admin', 'spectacle_frame_vendor'].includes(req.user.role)) {
     return res.status(403).json({ error: 'forbidden' });
   }
-  const vendorUserId = req.user.role === 'spectacle_frame_vendor' ? req.user.id : null;
+  const vendorUserId = req.user.role === 'spectacle_frame_vendor' ? resolveVendorOwner(req.user).vendorUserId : null;
   const info = db
     .prepare('INSERT INTO spectacle_frames (name, code, brand, vendor_user_id, vendor, base_price, promotion_price, vendor_office, vendor_mobile, vendor_address, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
     .run(name, code || null, brand || null, vendorUserId, vendor || null, Number(base_price) || 0, Number(promotion_price) || 0, vendor_office || null, vendor_mobile || null, vendor_address || null, active != null ? (active ? 1 : 0) : 1);

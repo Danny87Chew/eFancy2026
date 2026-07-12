@@ -174,6 +174,7 @@ export default function App() {
   ));
   const isAdminLike = isAdmin || isVendorLike;
   const showCartTab = !isVendorLike && !isAdmin;
+  const vendorDisplayName = user?.merchant_name || user?.vendor_name || user?.nickname || user?.real_name || vendorContext?.merchant_name || vendorContext?.vendor_name || '';
 
   return (
     <div className="app">
@@ -185,7 +186,14 @@ export default function App() {
             <></>
           )}
           <div className="topbar-right">
-            {!isLogin && <LanguageSelector />}
+            {!isLogin && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                {isVendorLike && vendorDisplayName ? (
+                  <div style={{ fontSize: 12, fontWeight: 600, textAlign: 'right', lineHeight: 1.2 }}>{vendorDisplayName}</div>
+                ) : null}
+                <LanguageSelector />
+              </div>
+            )}
           </div>
         </div>
       </header>

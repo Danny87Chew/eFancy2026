@@ -81,48 +81,71 @@ router.post('/', authRequired, (req, res) => {
     return res.status(403).json({ error: 'forbidden' });
   }
   const vendorUserId = req.user.role === 'spectacle_frame_vendor' ? resolveVendorOwner(req.user).vendorUserId : null;
-  const info = db
-    .prepare('INSERT INTO spectacle_frames (name, code, brand, vendor_user_id, vendor, base_price, promotion_price, vendor_office, vendor_mobile, vendor_address, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(name, code || null, brand || null, vendorUserId, vendor || null, Number(base_price) || 0, Number(promotion_price) || 0, vendor_office || null, vendor_mobile || null, vendor_address || null, active != null ? (active ? 1 : 0) : 1);
-  const id = info.lastInsertRowid;
-  if (Array.isArray(images)) {
-    const stmt = db.prepare('INSERT INTO frame_images (frame_id, url, sort_order) VALUES (?, ?, ?)');
-    images.forEach((url, idx) => stmt.run(id, url, idx));
+  try {
+    const info = db
+      .prepare('INSERT INTO spectacle_frames (name, code, brand, vendor_user_id, vendor, base_price, promotion_price, vendor_office, vendor_mobile, vendor_address, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(name, code || null, brand || null, vendorUserId, vendor || null, Number(base_price) || 0, Number(promotion_price) || 0, vendor_office || null, vendor_mobile || null, vendor_address || null, active != null ? (active ? 1 : 0) : 1);
+    const id = info.lastInsertRowid;
+    if (Array.isArray(images)) {
+      const stmt = db.prepare('INSERT INTO frame_images (frame_id, url, sort_order) VALUES (?, ?, ?)');
+      images.forEach((url, idx) => stmt.run(id, url, idx));
+    }
+    res.json({ frame: loadFrame(id) });
+  } catch (err) {
+    if (err && (err.code === 'SQLITE_CONSTRAINT' || String(err.message || '').toLowerCase().includes('unique'))) {
+      const msg = String(err.message || '').toLowerCase();
+      if (msg.includes('name') || msg.includes('idx_spectacle_frames_name_unique')) return res.status(409).json({ error: 'name_taken' });
+      if (msg.includes('code') || msg.includes('idx_spectacle_frames_code_unique')) return res.status(409).json({ error: 'code_taken' });
+      return res.status(409).json({ error: 'already_exists' });
+    }
+    console.error('Failed to create frame', err);
+    res.status(500).json({ error: 'server_error' });
   }
-  res.json({ frame: loadFrame(id) });
 });
+
 
 router.patch('/:id', authRequired, (req, res) => {
   const { name, code, brand, vendor, base_price, promotion_price, active, images, vendor_office, vendor_mobile, vendor_address } = req.body || {};
   const frame = loadFrame(req.params.id);
   if (!frame) return res.status(404).json({ error: 'not_found' });
   if (!canEditFrame(req.user, frame)) return res.status(403).json({ error: 'forbidden' });
-  db.prepare(
-    `UPDATE spectacle_frames SET
-       name = COALESCE(?, name),
-       code = COALESCE(?, code),
-       brand = COALESCE(?, brand),
-       vendor = COALESCE(?, vendor),
-       base_price = COALESCE(?, base_price),
-       promotion_price = COALESCE(?, promotion_price),
-       vendor_office = COALESCE(?, vendor_office),
-       vendor_mobile = COALESCE(?, vendor_mobile),
-       vendor_address = COALESCE(?, vendor_address),
-       active = COALESCE(?, active)
-     WHERE id = ?`
-  ).run(
-    name ?? null,
-    code ?? null,
-    brand ?? null,
-    vendor ?? null,
-    base_price != null ? Number(base_price) : null,
-    promotion_price != null ? Number(promotion_price) : null,
-    vendor_office ?? null,
-    vendor_mobile ?? null,
-    vendor_address ?? null,
-    active != null ? (active ? 1 : 0) : null,
-    req.params.id
-  );
+  try {
+    db.prepare(
+      `UPDATE spectacle_frames SET
+         name = COALESCE(?, name),
+         code = COALESCE(?, code),
+         brand = COALESCE(?, brand),
+         vendor = COALESCE(?, vendor),
+         base_price = COALESCE(?, base_price),
+         promotion_price = COALESCE(?, promotion_price),
+         vendor_office = COALESCE(?, vendor_office),
+         vendor_mobile = COALESCE(?, vendor_mobile),
+         vendor_address = COALESCE(?, vendor_address),
+         active = COALESCE(?, active)
+       WHERE id = ?`
+    ).run(
+      name ?? null,
+      code ?? null,
+      brand ?? null,
+      vendor ?? null,
+      base_price != null ? Number(base_price) : null,
+      promotion_price != null ? Number(promotion_price) : null,
+      vendor_office ?? null,
+      vendor_mobile ?? null,
+      vendor_address ?? null,
+      active != null ? (active ? 1 : 0) : null,
+      req.params.id
+    );
+  } catch (err) {
+    if (err && (err.code === 'SQLITE_CONSTRAINT' || String(err.message || '').toLowerCase().includes('unique'))) {
+      const msg = String(err.message || '').toLowerCase();
+      if (msg.includes('name') || msg.includes('idx_spectacle_frames_name_unique')) return res.status(409).json({ error: 'name_taken' });
+      if (msg.includes('code') || msg.includes('idx_spectacle_frames_code_unique')) return res.status(409).json({ error: 'code_taken' });
+      return res.status(409).json({ error: 'already_exists' });
+    }
+    console.error('Failed to update frame', err);
+    return res.status(500).json({ error: 'server_error' });
+  }
   if (Array.isArray(images)) {
     db.prepare('DELETE FROM frame_images WHERE frame_id = ?').run(req.params.id);
     const stmt = db.prepare('INSERT INTO frame_images (frame_id, url, sort_order) VALUES (?, ?, ?)');

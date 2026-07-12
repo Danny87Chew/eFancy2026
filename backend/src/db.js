@@ -56,6 +56,10 @@ function init() {
   if (!spectacleFrameCols.includes('code')) {
     db.prepare('ALTER TABLE spectacle_frames ADD COLUMN code TEXT').run();
   }
+
+  // Ensure name/code uniqueness for frames
+  db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_spectacle_frames_name_unique ON spectacle_frames(name)').run();
+  db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_spectacle_frames_code_unique ON spectacle_frames(code)').run();
   if (!spectacleFrameCols.includes('vendor_user_id')) {
     db.prepare('ALTER TABLE spectacle_frames ADD COLUMN vendor_user_id INTEGER').run();
   }
@@ -88,6 +92,14 @@ function init() {
   if (!lensBrandCols.includes('vendor_user_id')) {
     db.prepare('ALTER TABLE lens_brands ADD COLUMN vendor_user_id INTEGER').run();
   }
+  if (!lensBrandCols.includes('base_price')) {
+    db.prepare('ALTER TABLE lens_brands ADD COLUMN base_price REAL NOT NULL DEFAULT 0').run();
+  }
+  if (!lensBrandCols.includes('promotion_price')) {
+    db.prepare('ALTER TABLE lens_brands ADD COLUMN promotion_price REAL NOT NULL DEFAULT 0').run();
+  }
+  // Ensure code uniqueness for lens brands
+  db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_lens_brands_code_unique ON lens_brands(code)').run();
 
   db.exec(`
   CREATE TABLE IF NOT EXISTS partner_shops (

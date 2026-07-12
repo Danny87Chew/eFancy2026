@@ -101,14 +101,25 @@ router.get('/orders', authRequired, requireVendor, (req, res) => {
   const tab = req.query.tab; // 'available' | 'taken' | undefined
   let rows;
 
+  const mobileFilter = (req.query.mobile || '').trim();
   if (role === 'spectacle_checkup_vendor') {
-    rows = db.prepare(
-      `SELECT o.*, u.nickname AS user_nickname, u.real_name AS user_real_name, u.mobile AS user_mobile
-       FROM orders o
-       LEFT JOIN users u ON u.id = o.user_id
-       WHERE o.module = 'checkup' AND o.status = 'CheckupPaid'
-       ORDER BY o.id DESC LIMIT 200`
-    ).all();
+    if (mobileFilter) {
+      rows = db.prepare(
+        `SELECT o.*, u.nickname AS user_nickname, u.real_name AS user_real_name, u.mobile AS user_mobile
+         FROM orders o
+         LEFT JOIN users u ON u.id = o.user_id
+         WHERE o.module = 'checkup' AND o.status = 'CheckupPaid' AND u.mobile LIKE ?
+         ORDER BY o.id DESC LIMIT 200`
+      ).all(`%${mobileFilter}%`);
+    } else {
+      rows = db.prepare(
+        `SELECT o.*, u.nickname AS user_nickname, u.real_name AS user_real_name, u.mobile AS user_mobile
+         FROM orders o
+         LEFT JOIN users u ON u.id = o.user_id
+         WHERE o.module = 'checkup' AND o.status = 'CheckupPaid'
+         ORDER BY o.id DESC LIMIT 200`
+      ).all();
+    }
   } else if (role === 'spectacle_producer_vendor') {
     const vendorOwnerId = getVendorOwnerId(req);
     if (tab === 'available') {

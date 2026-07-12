@@ -36,6 +36,7 @@ function CheckupTab() {
   const [checkupOrders, setCheckupOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState('');
+  const [searchMobile, setSearchMobile] = useState('');
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -81,11 +82,12 @@ function CheckupTab() {
   useEffect(() => { if (mode !== 'scan') stopCamera(); }, [mode, stopCamera]);
   useEffect(() => () => stopCamera(), [stopCamera]);
 
-  const loadCheckupOrders = useCallback(async () => {
+  const loadCheckupOrders = useCallback(async (mobile) => {
     setOrdersError('');
     setOrdersLoading(true);
     try {
-      const d = await api('/api/vendor/orders');
+      const query = mobile ? `?mobile=${encodeURIComponent(mobile)}` : '';
+      const d = await api(`/api/vendor/orders${query}`);
       setCheckupOrders(d.orders || []);
     } catch (e) {
       setOrdersError(e?.data?.error || e.message || 'Failed to load checkup orders');
@@ -216,7 +218,32 @@ function CheckupTab() {
         <div className="card" style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 8 }}>
             <strong style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('EyeSight Checkup Orders')}</strong>
-            <button className="btn secondary" style={{ padding: '6px 10px', width: 180, minWidth: 180, whiteSpace: 'nowrap' }} onClick={loadCheckupOrders} disabled={ordersLoading}>{t('Refresh')}</button>
+            <button
+              className="btn secondary"
+              style={{ padding: '6px 10px', width: 120, minWidth: 120, whiteSpace: 'nowrap' }}
+              onClick={() => { setSearchMobile(''); loadCheckupOrders(); }}
+              disabled={ordersLoading}
+            >
+              {t('Refresh')}
+            </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 260, maxWidth: '100%' }}>
+              <PhoneInput
+                value={searchMobile}
+                onChange={setSearchMobile}
+                label={t('Search by mobile')}
+                disabled={ordersLoading}
+              />
+            </div>
+            <button
+              className="btn"
+              style={{ padding: '6px 10px', width: 140, minWidth: 140, whiteSpace: 'nowrap', marginTop: 24 }}
+              onClick={() => loadCheckupOrders(searchMobile)}
+              disabled={ordersLoading || !searchMobile || !isValidMobile(searchMobile)}
+            >
+              {t('Search')}
+            </button>
           </div>
           {ordersLoading ? (
             <div className="muted">{t('Loading…')}</div>

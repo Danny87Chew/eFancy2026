@@ -357,6 +357,7 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
 
   const [vendorForm, setVendorForm] = useState({
     nickname: '',
+    owner_name: '',
     business_licence: '',
     mobile_cc: COUNTRY_CODES[0].code,
     mobile_local: '',
@@ -399,6 +400,7 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
       const contactParsed = parseMobile(p.contact_number || '');
       const nextVendorForm = {
         nickname: u.nickname || '',
+        owner_name: u.real_name || '',
         business_licence: p.business_licence || '',
         mobile_cc: ownerMobile.cc,
         mobile_local: ownerMobile.local,
@@ -558,6 +560,7 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
           method: 'PATCH',
           body: {
             nickname: vendorForm.nickname.trim() || null,
+            real_name: vendorForm.owner_name.trim() || null,
             business_licence: vendorForm.business_licence.trim() || null,
             merchant_name: shopForm.name.trim() || vendorForm.nickname.trim() || null,
             contact_number: shopForm.contact.trim() ? buildMobile(shopForm.contact_cc, shopForm.contact) : null,
@@ -590,6 +593,7 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
           mobile,
           role: vendorForm.role,
           nickname: vendorForm.nickname.trim() || undefined,
+          real_name: vendorForm.owner_name.trim() || undefined,
           business_licence: vendorForm.business_licence.trim() || undefined,
           merchant_name: shopForm.name.trim() || vendorForm.nickname.trim() || undefined,
           contact_number: shopForm.contact.trim() ? buildMobile(shopForm.contact_cc, shopForm.contact) : undefined,
@@ -611,6 +615,7 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
       });
       setVendorForm((prev) => ({
         nickname: '',
+        owner_name: '',
         business_licence: '',
         mobile_cc: prev.mobile_cc,
         mobile_local: '',
@@ -884,16 +889,28 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
             placeholder={t('Business licence number')}
           />
         </label>
-        <label className="field">
-          {t('Owner Mobile')}
-          <PhoneInput
-            value={(vendorForm.mobile_cc || '+65') + (vendorForm.mobile_local || '')}
-            onChange={(v) => {
-              const parsed = parseMobile(v);
-              setVendorForm((prev) => ({ ...prev, mobile_cc: parsed.cc, mobile_local: parsed.local }));
-            }}
-          />
-        </label>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <div style={{ flex: 1 }}>
+            <label className="field">
+              {t('Owner name')}
+              <input
+                value={vendorForm.owner_name}
+                onChange={(e) => setVendorForm((prev) => ({ ...prev, owner_name: e.target.value }))}
+                placeholder={t('Owner name')}
+              />
+            </label>
+          </div>
+          <div style={{ width: 300 }}>
+            <PhoneInput
+              label={t('Owner Mobile')}
+              value={(vendorForm.mobile_cc || '+65') + (vendorForm.mobile_local || '')}
+              onChange={(v) => {
+                const parsed = parseMobile(v);
+                setVendorForm((prev) => ({ ...prev, mobile_cc: parsed.cc, mobile_local: parsed.local }));
+              }}
+            />
+          </div>
+        </div>
 
         <div className="row">
           <PhoneInput

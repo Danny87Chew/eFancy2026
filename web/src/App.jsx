@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from './state/AuthContext.jsx';
-import { VENDOR_ROLES } from './roles.js';
+import { VENDOR_ROLES, ROLE_LABELS } from './roles.js';
 import { useTranslation } from 'react-i18next';
 import Login from './pages/Login.jsx';
 import Home from './pages/Home.jsx';
@@ -195,25 +195,38 @@ export default function App() {
   const isAdminLike = isAdmin || isVendorLike;
   const showCartTab = !isVendorLike && !isAdmin;
   const vendorDisplayName = user?.merchant_name || user?.vendor_name || user?.nickname || user?.real_name || vendorContext?.merchant_name || vendorContext?.vendor_name || '';
-  const adminDisplayName = isAdmin ? t('Admin User') : '';
+  const adminDisplayName = user?.nickname || user?.real_name || '';
+  
+  // Get user role for display
+  const userRole = user?.role || vendorContext?.role;
+  const userTypeLabel = userRole ? ROLE_LABELS[userRole] || userRole : '';
+  
+  // Build display text: "User Type - User Name" for vendors/admins, or just name
+  let userDisplayInfo = '';
+  if (isAdmin) {
+    userDisplayInfo = adminDisplayName ? `${userTypeLabel} - ${adminDisplayName}` : userTypeLabel || t('Admin User');
+  } else if (isVendorLike && vendorDisplayName) {
+    userDisplayInfo = userTypeLabel ? `${userTypeLabel} - ${vendorDisplayName}` : vendorDisplayName;
+  }
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="topbar-inner">
           {!isLogin ? (
-            <TopTabs isAdminLike={isAdminLike} onLogout={logout} />
+            isAdminLike ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>{userDisplayInfo}</div>
+              </div>
+            ) : (
+              <TopTabs isAdminLike={isAdminLike} onLogout={logout} />
+            )
           ) : (
             <></>
           )}
           <div className="topbar-right">
             {!isLogin && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                {(isAdmin || (isVendorLike && vendorDisplayName)) ? (
-                  <div style={{ fontSize: 12, fontWeight: 600, textAlign: 'right', lineHeight: 1.2 }}>
-                    {isAdmin ? adminDisplayName : vendorDisplayName}
-                  </div>
-                ) : null}
                 <LanguageSelector />
               </div>
             )}

@@ -102,6 +102,56 @@ function init() {
   db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_lens_brands_code_unique ON lens_brands(code)').run();
 
   db.exec(`
+  CREATE TABLE IF NOT EXISTS goods (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    code TEXT,
+    category TEXT,
+    kind TEXT NOT NULL DEFAULT 'normal', -- normal|fresh_preorder
+    vendor_user_id INTEGER,
+    price REAL NOT NULL DEFAULT 0,
+    source_price REAL NOT NULL DEFAULT 0,
+    market_price REAL NOT NULL DEFAULT 0,
+    promotion_price REAL NOT NULL DEFAULT 0,
+    stock INTEGER NOT NULL DEFAULT 0,
+    available_from TEXT, -- for pre-order availability
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS goods_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    good_id INTEGER NOT NULL,
+    url TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (good_id) REFERENCES goods(id) ON DELETE CASCADE
+  );
+  `);
+
+  const goodCols = db.prepare(`PRAGMA table_info(goods)`).all().map(c => c.name);
+  if (!goodCols.includes('code')) {
+    db.prepare('ALTER TABLE goods ADD COLUMN code TEXT').run();
+  }
+  if (!goodCols.includes('source_price')) {
+    db.prepare('ALTER TABLE goods ADD COLUMN source_price REAL NOT NULL DEFAULT 0').run();
+  }
+  if (!goodCols.includes('market_price')) {
+    db.prepare('ALTER TABLE goods ADD COLUMN market_price REAL NOT NULL DEFAULT 0').run();
+  }
+  if (!goodCols.includes('promotion_price')) {
+    db.prepare('ALTER TABLE goods ADD COLUMN promotion_price REAL NOT NULL DEFAULT 0').run();
+  }
+  // ensure code uniqueness for goods if desired (not enforced for name)
+  db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_goods_code_unique ON goods(code)').run();
+
+  db.exec(`
+  CREATE TABLE IF NOT EXISTS goods_categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS partner_shops (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,

@@ -23,6 +23,7 @@ import VendorCheckup from './pages/vendor/VendorCheckup.jsx';
 import VendorManufacture from './pages/vendor/VendorManufacture.jsx';
 import VendorFrames from './pages/vendor/VendorFrames.jsx';
 import VendorLenses from './pages/vendor/VendorLenses.jsx';
+import Goods from './pages/Goods.jsx';
 import LanguageSelector from './components/LanguageSelector.jsx';
 
 function HomeRoute() {
@@ -59,6 +60,20 @@ function TopTabs({ isAdminLike, onLogout }) {
     container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
   };
 
+  const heading = (() => {
+    const pathname = location.pathname;
+    if (pathname === '/admin' || pathname === '/admin/') return t('Administration');
+    if (pathname.startsWith('/admin/frames')) return t('Frames');
+    if (pathname.startsWith('/admin/goods-categories')) return t('Goods Category');
+    if (pathname.startsWith('/admin/vendors')) return t('Vendors');
+    if (pathname.startsWith('/admin/lens-brands')) return t('Lens brands');
+    if (pathname.startsWith('/admin/orders')) return t('Orders');
+    if (pathname.startsWith('/admin/config')) return t('Config');
+    if (pathname.startsWith('/admin/users')) return t('Users');
+    if (pathname.startsWith('/goods')) return t('Goods');
+    return t('Administration');
+  })();
+
   useEffect(() => {
     // center active tab on navigation
     const container = tabsRef.current;
@@ -68,8 +83,8 @@ function TopTabs({ isAdminLike, onLogout }) {
   }, [location.pathname]);
   if (isAdminLike) {
     return (
-      <div className="topbar-actions">
-        <button className="btn secondary topbar-logout" onClick={onLogout}>{t('Logout')}</button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.2 }}>{heading}</div>
       </div>
     );
   }
@@ -132,6 +147,11 @@ function BottomBar() {
           <span className="icon">🛠️</span>{t('Administration')}
         </NavLink>
       )}
+      {isAdmin && (
+        <NavLink to="/goods" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+          <span className="icon">🧺</span>{t('Goods')}
+        </NavLink>
+      )}
       {!isAdmin && isCheckupVendor && (
         <NavLink to="/vendor/checkup" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
           <span className="icon">🛠️</span>{t('Administration')}
@@ -175,6 +195,7 @@ export default function App() {
   const isAdminLike = isAdmin || isVendorLike;
   const showCartTab = !isVendorLike && !isAdmin;
   const vendorDisplayName = user?.merchant_name || user?.vendor_name || user?.nickname || user?.real_name || vendorContext?.merchant_name || vendorContext?.vendor_name || '';
+  const adminDisplayName = isAdmin ? t('Admin User') : '';
 
   return (
     <div className="app">
@@ -188,8 +209,10 @@ export default function App() {
           <div className="topbar-right">
             {!isLogin && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                {isVendorLike && vendorDisplayName ? (
-                  <div style={{ fontSize: 12, fontWeight: 600, textAlign: 'right', lineHeight: 1.2 }}>{vendorDisplayName}</div>
+                {(isAdmin || (isVendorLike && vendorDisplayName)) ? (
+                  <div style={{ fontSize: 12, fontWeight: 600, textAlign: 'right', lineHeight: 1.2 }}>
+                    {isAdmin ? adminDisplayName : vendorDisplayName}
+                  </div>
                 ) : null}
                 <LanguageSelector />
               </div>
@@ -218,6 +241,7 @@ export default function App() {
           <Route path="/orders/:id" element={<Protected><OrderDetail /></Protected>} />
           <Route path="/cart" element={<Protected>{isVendorLike ? <Navigate to="/me" replace /> : <Cart />}</Protected>} />
           <Route path="/me" element={<Protected><Me /></Protected>} />
+          <Route path="/goods" element={<Protected><Goods /></Protected>} />
           <Route path="/admin/*" element={<Protected><Admin /></Protected>} />
           <Route path="/vendor/checkup" element={<Protected><VendorCheckup /></Protected>} />
           <Route path="/vendor/manufacture" element={<Protected><VendorManufacture /></Protected>} />

@@ -609,4 +609,206 @@ router.patch('/orders/:id/vendor-price', authRequired, requireAdmin, (req, res) 
   res.json({ ok: true });
 });
 
+const enrichGoodsWithImages = (rows) => rows.map((row) => ({
+  ...row,
+  images: db.prepare('SELECT url FROM goods_images WHERE good_id = ? ORDER BY sort_order, id').all(row.id).map((img) => img.url)
+}));
+
+// GET /api/admin/goods-categories (admin+)
+router.get('/goods-categories', authRequired, requireAdmin, (req, res) => {
+  const categories = db.prepare('SELECT id, name, created_at FROM goods_categories ORDER BY name ASC').all();
+  res.json({ categories });
+});
+
+// POST /api/admin/goods-categories { name } (admin+)
+router.post('/goods-categories', authRequired, requireAdmin, (req, res) => {
+  const { name } = req.body || {};
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return res.status(400).json({ error: 'name_required' });
+  try {
+    const info = db.prepare('INSERT INTO goods_categories (name) VALUES (?)').run(trimmed);
+    const created = db.prepare('SELECT id, name, created_at FROM goods_categories WHERE id = ?').get(info.lastInsertRowid);
+    res.status(201).json({ category: created });
+  } catch (err) {
+    if (err && (err.code === 'SQLITE_CONSTRAINT' || String(err.message || '').toLowerCase().includes('unique'))) {
+      return res.status(409).json({ error: 'category_exists' });
+    }
+    console.error('Failed creating goods category', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// PATCH /api/admin/goods-categories/:id { name }
+router.patch('/goods-categories/:id', authRequired, requireAdmin, (req, res) => {
+  const { name } = req.body || {};
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return res.status(400).json({ error: 'name_required' });
+  const existing = db.prepare('SELECT id FROM goods_categories WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'not_found' });
+  try {
+    db.prepare('UPDATE goods_categories SET name = ? WHERE id = ?').run(trimmed, req.params.id);
+    const updated = db.prepare('SELECT id, name, created_at FROM goods_categories WHERE id = ?').get(req.params.id);
+    res.json({ category: updated });
+  } catch (err) {
+    if (err && (err.code === 'SQLITE_CONSTRAINT' || String(err.message || '').toLowerCase().includes('unique'))) {
+      return res.status(409).json({ error: 'category_exists' });
+    }
+    console.error('Failed updating goods category', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// DELETE /api/admin/goods-categories/:id
+router.delete('/goods-categories/:id', authRequired, requireAdmin, (req, res) => {
+  const existing = db.prepare('SELECT id FROM goods_categories WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'not_found' });
+  db.prepare('DELETE FROM goods_categories WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// GET /api/admin/goods?category=...  (admin+)
+router.get('/goods', authRequired, requireAdmin, (req, res) => {
+  const { category } = req.query || {};
+  let rows;
+  if (category) rows = db.prepare('SELECT * FROM goods WHERE category = ? ORDER BY id DESC').all(category);
+  else rows = db.prepare('SELECT * FROM goods ORDER BY id DESC').all();
+  res.json({ goods: enrichGoodsWithImages(rows) });
+});
+
+// PATCH /api/admin/goods/:id  { name?, code?, category?, kind?, price?, source_price?, market_price?, promotion_price?, stock?, available_from?, active?, images? }
+router.patch('/goods/:id', authRequired, requireAdmin, (req, res) => {
+  const existing = db.prepare('SELECT * FROM goods WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'not_found' });
+
+  const { name, code, category, kind, price, source_price, market_price, promotion_price, stock, available_from, active, images } = req.body || {};
+  const updates = [];
+  const values = [];
+
+  if (name !== undefined) {
+    const trimmedName = String(name).trim();
+    if (!trimmedName) return res.status(400).json({ error: 'name_required' });
+    updates.push('name = ?'); values.push(trimmedName);
+  }
+  if (code !== undefined) {
+    updates.push('code = ?'); values.push(code == null || String(code).trim() === '' ? null : String(code).trim());
+  }
+  if (category !== undefined) {
+    updates.push('category = ?'); values.push(category == null || String(category).trim() === '' ? null : String(category).trim());
+  }
+  if (kind !== undefined) {
+    updates.push('kind = ?'); values.push(kind === 'fresh_preorder' ? 'fresh_preorder' : 'normal');
+  }
+
+  let effectiveSourcePrice;
+  if (source_price !== undefined) effectiveSourcePrice = Number(source_price);
+  else if (price !== undefined) effectiveSourcePrice = Number(price);
+  if (effectiveSourcePrice !== undefined) {
+    updates.push('price = ?'); values.push(effectiveSourcePrice);
+    updates.push('source_price = ?'); values.push(effectiveSourcePrice);
+  }
+  if (market_price !== undefined) {
+    updates.push('market_price = ?'); values.push(Number(market_price));
+  }
+  if (promotion_price !== undefined) {
+    updates.push('promotion_price = ?'); values.push(Number(promotion_price));
+  }
+  if (stock !== undefined) {
+    updates.push('stock = ?'); values.push(Number(stock) || 0);
+  }
+  if (available_from !== undefined) {
+    updates.push('available_from = ?'); values.push(available_from == null || String(available_from).trim() === '' ? null : String(available_from).trim());
+  }
+  if (active !== undefined) {
+    updates.push('active = ?'); values.push(active ? 1 : 0);
+  }
+
+  if (updates.length === 0 && images === undefined) return res.status(400).json({ error: 'no_changes' });
+
+  try {
+    const tx = db.transaction(() => {
+      if (updates.length > 0) {
+        db.prepare(`UPDATE goods SET ${updates.join(', ')} WHERE id = ?`).run(...values, req.params.id);
+      }
+      if (images !== undefined) {
+        db.prepare('DELETE FROM goods_images WHERE good_id = ?').run(req.params.id);
+        if (Array.isArray(images)) {
+          const stmt = db.prepare('INSERT INTO goods_images (good_id, url, sort_order) VALUES (?, ?, ?)');
+          images.forEach((url, idx) => {
+            const trimmed = String(url || '').trim();
+            if (trimmed) stmt.run(req.params.id, trimmed, idx);
+          });
+        }
+      }
+    });
+    tx();
+
+    const updated = db.prepare('SELECT * FROM goods WHERE id = ?').get(req.params.id);
+    const updatedWithImages = enrichGoodsWithImages([updated])[0];
+    db.prepare(`INSERT INTO admin_audit_logs (actor_user_id, action, target, detail_json) VALUES (?, 'goods.update', ?, ?)`)
+      .run(req.user.id, String(updated.id), JSON.stringify(updatedWithImages));
+    res.json({ good: updatedWithImages });
+  } catch (err) {
+    if (err && (err.code === 'SQLITE_CONSTRAINT' || String(err.message || '').toLowerCase().includes('unique'))) {
+      const msg = String(err.message || '').toLowerCase();
+      if (msg.includes('code') || msg.includes('idx_goods_code_unique')) return res.status(409).json({ error: 'code_taken' });
+      return res.status(409).json({ error: 'already_exists' });
+    }
+    console.error('Failed updating good', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// DELETE /api/admin/goods/:id
+router.delete('/goods/:id', authRequired, requireAdmin, (req, res) => {
+  const existing = db.prepare('SELECT id FROM goods WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'not_found' });
+  db.prepare('DELETE FROM goods WHERE id = ?').run(req.params.id);
+  db.prepare(`INSERT INTO admin_audit_logs (actor_user_id, action, target, detail_json) VALUES (?, 'goods.delete', ?, ?)`)
+    .run(req.user.id, String(req.params.id), JSON.stringify({ deleted: true }));
+  res.json({ ok: true });
+});
+
+// POST /api/admin/goods  { name, code?, category?, kind?, price?, source_price?, market_price?, promotion_price?, stock?, available_from?, active?, images? }
+router.post('/goods', authRequired, requireAdmin, (req, res) => {
+  const { name, code, category, kind, price, source_price, market_price, promotion_price, stock, available_from, active, images } = req.body || {};
+  if (!name || !String(name).trim()) return res.status(400).json({ error: 'name_required' });
+  const effectiveKind = kind === 'fresh_preorder' ? 'fresh_preorder' : 'normal';
+  const effectiveSourcePrice = source_price != null ? Number(source_price) : (price != null ? Number(price) : 0);
+  const effectiveMarketPrice = market_price != null ? Number(market_price) : 0;
+  const effectivePromotionPrice = promotion_price != null ? Number(promotion_price) : 0;
+  try {
+    const info = db.prepare(
+      `INSERT INTO goods (name, code, category, kind, vendor_user_id, price, source_price, market_price, promotion_price, stock, available_from, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      String(name).trim(), code ? String(code).trim() : null, category ? String(category).trim() : null,
+      effectiveKind, null, effectiveSourcePrice, effectiveSourcePrice, effectiveMarketPrice, effectivePromotionPrice,
+      Number(stock) || 0, available_from ? String(available_from) : null,
+      active != null ? (active ? 1 : 0) : 1
+    );
+
+    if (Array.isArray(images)) {
+      const stmt = db.prepare('INSERT INTO goods_images (good_id, url, sort_order) VALUES (?, ?, ?)');
+      images.forEach((url, idx) => {
+        const trimmed = String(url || '').trim();
+        if (trimmed) stmt.run(info.lastInsertRowid, trimmed, idx);
+      });
+    }
+
+    const created = db.prepare('SELECT * FROM goods WHERE id = ?').get(info.lastInsertRowid);
+    const createdWithImages = enrichGoodsWithImages([created])[0];
+    db.prepare(`INSERT INTO admin_audit_logs (actor_user_id, action, target, detail_json) VALUES (?, 'goods.create', ?, ?)`)
+      .run(req.user.id, String(created.id), JSON.stringify(createdWithImages));
+    res.status(201).json({ good: createdWithImages });
+  } catch (err) {
+    if (err && (err.code === 'SQLITE_CONSTRAINT' || String(err.message || '').toLowerCase().includes('unique'))) {
+      const msg = String(err.message || '').toLowerCase();
+      if (msg.includes('code') || msg.includes('idx_goods_code_unique')) return res.status(409).json({ error: 'code_taken' });
+      return res.status(409).json({ error: 'already_exists' });
+    }
+    console.error('Failed creating good', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 module.exports = router;

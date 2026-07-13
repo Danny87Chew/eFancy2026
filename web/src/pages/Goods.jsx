@@ -225,7 +225,7 @@ export default function Goods() {
             </label>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-            <button type="submit" style={{ fontWeight: 700, fontSize: 17 }}>{editingId ? (t('Update Goods') || 'Update Goods') : (t('Add Goods') || 'Add Goods')}</button>
+            <button type="submit" style={{ fontWeight: 700, fontSize: 17 }}>{editingId ? (t('Update Goods') || 'Update Goods') : (t('Confirm to Add Goods') || 'Confirm to Add Goods')}</button>
             {(showAddForm || editingId) ? <button type="button" onClick={resetForm} style={{ fontWeight: 700, fontSize: 17, marginLeft: 0 }}>{t('Cancel') || 'Cancel'}</button> : null}
             {error && <span style={{ color: 'red', marginLeft: 12 }}>{error}</span>}
           </div>

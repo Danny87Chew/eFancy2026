@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api';
 import { useTranslation } from 'react-i18next';
+import ClearableInput from '../../components/ClearableInput';
 
 export default function AdminConfig() {
   const { t } = useTranslation();
@@ -29,7 +30,7 @@ export default function AdminConfig() {
             <div key={c.key} style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
               <div style={{ flex: 1 }}>
                 <div className="muted">{c.key}</div>
-                <input value={edits[c.key] ?? ''} onChange={e => setEdits({ ...edits, [c.key]: e.target.value })} />
+                <ClearableInput value={edits[c.key] ?? ''} onChange={e => setEdits({ ...edits, [c.key]: e.target.value })} />
               </div>
               <button
                 className="btn secondary"

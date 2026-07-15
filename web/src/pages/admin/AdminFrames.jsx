@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api';
 import PhoneInput from '../../components/PhoneInput.jsx';
+import ClearableInput from '../../components/ClearableInput';
 import { useCurrency } from '../../state/CurrencyContext.jsx';
 import { useTranslation } from 'react-i18next';
 
@@ -202,9 +203,9 @@ export default function AdminFrames() {
               </label>
             </div>
           </label>
-        <label className="field">{t('Frame Name')}<input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
-        <label className="field">{t('Frame Code')}<input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></label>
-        <label className="field">{t('Brand')}<input value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} /></label>
+        <label className="field">{t('Frame Name')}<ClearableInput value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
+        <label className="field">{t('Frame Code')}<ClearableInput value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></label>
+        <label className="field">{t('Brand')}<ClearableInput value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} /></label>
         <label className="field">{t('Vendor name')}
           <select value={vendorSelectedId || ''} onChange={e => {
             const id = e.target.value || null;
@@ -241,33 +242,33 @@ export default function AdminFrames() {
           <PhoneInput disabled={!!vendorSelectedId} label={t('Vendor mobile number')} value={form.vendor_mobile || ''} onChange={v => setForm({ ...form, vendor_mobile: v })} />
         </div>
         <label className="field">{t('Vendor address')}<textarea rows={2} value={form.vendor_address} onChange={e => setForm({ ...form, vendor_address: e.target.value })} disabled={!!vendorSelectedId} /></label>
-        <label className="field">{t('Road name')}<input value={form.vendor_road || ''} onChange={e => setForm({ ...form, vendor_road: e.target.value })} disabled={!!vendorSelectedId} /></label>
+        <label className="field">{t('Road name')}<ClearableInput value={form.vendor_road || ''} onChange={e => setForm({ ...form, vendor_road: e.target.value })} disabled={!!vendorSelectedId} /></label>
         <label className="field" style={{ marginTop: 8 }}>
           {t('Postcode')}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
-            <input value={form.vendor_postcode || ''} onChange={e => setForm({ ...form, vendor_postcode: e.target.value })} style={{ flex: 1 }} disabled={!!vendorSelectedId} />
+            <ClearableInput value={form.vendor_postcode || ''} onChange={e => setForm({ ...form, vendor_postcode: e.target.value })} style={{ flex: 1 }} disabled={!!vendorSelectedId} />
           </div>
         </label>
         <div style={{ display: 'flex', gap: 12, marginTop: 8, alignItems: 'flex-start' }}>
               <label className="field" style={{ flex: 1, minWidth: 0 }}>
               {t('Building Name:')}
-              <input placeholder={t('Building name')} value={form.vendor_building || ''} onChange={e => setForm({ ...form, vendor_building: e.target.value })} disabled={!!vendorSelectedId} />
+              <ClearableInput placeholder={t('Building name')} value={form.vendor_building || ''} onChange={e => setForm({ ...form, vendor_building: e.target.value })} disabled={!!vendorSelectedId} />
           </label>
               <label className="field" style={{ width: 60 }}>
                 {t('Floor:') || t('Floor') || 'Floor:'}
-              <input placeholder={t('Floor')} value={form.vendor_floor || ''} onChange={e => setForm({ ...form, vendor_floor: e.target.value })} style={{ width: '100%' }} disabled={!!vendorSelectedId} />
+              <ClearableInput placeholder={t('Floor')} value={form.vendor_floor || ''} onChange={e => setForm({ ...form, vendor_floor: e.target.value })} style={{ width: '100%' }} disabled={!!vendorSelectedId} />
           </label>
               <label className="field" style={{ width: 110 }}>
                 {t('Unit:') || t('Unit') || 'Unit:'}
-              <input placeholder={t('Unit number')} value={form.vendor_unit || ''} onChange={e => setForm({ ...form, vendor_unit: e.target.value })} style={{ width: '100%' }} disabled={!!vendorSelectedId} />
+              <ClearableInput placeholder={t('Unit number')} value={form.vendor_unit || ''} onChange={e => setForm({ ...form, vendor_unit: e.target.value })} style={{ width: '100%' }} disabled={!!vendorSelectedId} />
             </label>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
           <label className="field" style={{ flex: 1, minWidth: 0 }}>{t('Base price (S$)')}
-            <input value={form.base_price} onChange={e => setForm({ ...form, base_price: e.target.value })} inputMode="decimal" />
+            <ClearableInput value={form.base_price} onChange={e => setForm({ ...form, base_price: e.target.value })} inputMode="decimal" />
           </label>
           <label className="field" style={{ width: 180 }}>{t('Promotion price (S$)')}
-            <input value={form.promotion_price} onChange={e => setForm({ ...form, promotion_price: e.target.value })} inputMode="decimal" />
+            <ClearableInput value={form.promotion_price} onChange={e => setForm({ ...form, promotion_price: e.target.value })} inputMode="decimal" />
           </label>
         </div>
         <label className="field">{t('Image URLs (one per line)')}
@@ -292,9 +293,9 @@ export default function AdminFrames() {
               </label>
             </div>
           </label>
-          <label className="field">{t('Frame Name')}<input value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} /></label>
-          <label className="field">{t('Frame Code')}<input value={editForm.code} onChange={e => setEditForm({ ...editForm, code: e.target.value })} /></label>
-          <label className="field">{t('Brand')}<input value={editForm.brand} onChange={e => setEditForm({ ...editForm, brand: e.target.value })} /></label>
+          <label className="field">{t('Frame Name')}<ClearableInput value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} /></label>
+          <label className="field">{t('Frame Code')}<ClearableInput value={editForm.code} onChange={e => setEditForm({ ...editForm, code: e.target.value })} /></label>
+          <label className="field">{t('Brand')}<ClearableInput value={editForm.brand} onChange={e => setEditForm({ ...editForm, brand: e.target.value })} /></label>
           <label className="field">{t('Vendor name')}
             <select value={editVendorSelectedId || ''} onChange={e => {
               const id = e.target.value || null;
@@ -331,33 +332,33 @@ export default function AdminFrames() {
             <PhoneInput disabled={!!editVendorSelectedId} label={t('Vendor mobile number')} value={editForm.vendor_mobile || ''} onChange={v => setEditForm({ ...editForm, vendor_mobile: v })} />
           </div>
           <label className="field">{t('Vendor address')}<textarea rows={2} value={editForm.vendor_address} onChange={e => setEditForm({ ...editForm, vendor_address: e.target.value })} disabled={!!editVendorSelectedId} /></label>
-          <label className="field">{t('Road name')}<input value={editForm.vendor_road || ''} onChange={e => setEditForm({ ...editForm, vendor_road: e.target.value })} disabled={!!editVendorSelectedId} /></label>
+          <label className="field">{t('Road name')}<ClearableInput value={editForm.vendor_road || ''} onChange={e => setEditForm({ ...editForm, vendor_road: e.target.value })} disabled={!!editVendorSelectedId} /></label>
           <label className="field" style={{ marginTop: 8 }}>
             {t('Postcode')}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
-              <input value={editForm.vendor_postcode || ''} onChange={e => setEditForm({ ...editForm, vendor_postcode: e.target.value })} style={{ flex: 1 }} disabled={!!editVendorSelectedId} />
+              <ClearableInput value={editForm.vendor_postcode || ''} onChange={e => setEditForm({ ...editForm, vendor_postcode: e.target.value })} style={{ flex: 1 }} disabled={!!editVendorSelectedId} />
             </div>
           </label>
           <div style={{ display: 'flex', gap: 12, marginTop: 8, alignItems: 'flex-start' }}>
             <label className="field" style={{ flex: 1, minWidth: 0 }}>
               {t('Building Name:')}
-              <input placeholder={t('Building name')} value={editForm.vendor_building || ''} onChange={e => setEditForm({ ...editForm, vendor_building: e.target.value })} disabled={!!editVendorSelectedId} />
+              <ClearableInput placeholder={t('Building name')} value={editForm.vendor_building || ''} onChange={e => setEditForm({ ...editForm, vendor_building: e.target.value })} disabled={!!editVendorSelectedId} />
             </label>
             <label className="field" style={{ width: 60 }}>
               {t('Floor:') || t('Floor') || 'Floor:'}
-              <input placeholder={t('Floor')} value={editForm.vendor_floor || ''} onChange={e => setEditForm({ ...editForm, vendor_floor: e.target.value })} style={{ width: '100%' }} disabled={!!editVendorSelectedId} />
+              <ClearableInput placeholder={t('Floor')} value={editForm.vendor_floor || ''} onChange={e => setEditForm({ ...editForm, vendor_floor: e.target.value })} style={{ width: '100%' }} disabled={!!editVendorSelectedId} />
             </label>
             <label className="field" style={{ width: 110 }}>
               {t('Unit:') || t('Unit') || 'Unit:'}
-              <input placeholder={t('Unit number')} value={editForm.vendor_unit || ''} onChange={e => setEditForm({ ...editForm, vendor_unit: e.target.value })} style={{ width: '100%' }} disabled={!!editVendorSelectedId} />
+              <ClearableInput placeholder={t('Unit number')} value={editForm.vendor_unit || ''} onChange={e => setEditForm({ ...editForm, vendor_unit: e.target.value })} style={{ width: '100%' }} disabled={!!editVendorSelectedId} />
             </label>
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
             <label className="field" style={{ flex: 1, minWidth: 0 }}>{t('Base price (S$)')}
-              <input value={editForm.base_price} onChange={e => setEditForm({ ...editForm, base_price: e.target.value })} inputMode="decimal" />
+              <ClearableInput value={editForm.base_price} onChange={e => setEditForm({ ...editForm, base_price: e.target.value })} inputMode="decimal" />
             </label>
             <label className="field" style={{ width: 180 }}>{t('Promotion price (S$)')}
-              <input value={editForm.promotion_price} onChange={e => setEditForm({ ...editForm, promotion_price: e.target.value })} inputMode="decimal" />
+              <ClearableInput value={editForm.promotion_price} onChange={e => setEditForm({ ...editForm, promotion_price: e.target.value })} inputMode="decimal" />
             </label>
           </div>
           <label className="field">{t('Image URLs (one per line)')}

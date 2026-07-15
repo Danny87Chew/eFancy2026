@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api';
 import { useAuth } from '../../state/AuthContext.jsx';
+import ClearableInput from '../../components/ClearableInput';
 import { useCurrency } from '../../state/CurrencyContext.jsx';
 import { useTranslation } from 'react-i18next';
 
@@ -567,7 +568,7 @@ export default function AdminOrders() {
             <p style={{ marginTop: 0 }}>{t('Order')} <strong>{publishForm.orderCode}</strong></p>
             <label className="field">
               {t('Vendor Price Offered (S$)')}
-              <input
+              <ClearableInput
                 type="number"
                 min="0"
                 step="0.01"
@@ -760,7 +761,7 @@ export default function AdminOrders() {
                     {['l_sph', 'l_cyl', 'l_axis', 'l_add', 'r_sph', 'r_cyl', 'r_axis', 'r_add', 'pd'].map(k => (
                       <label key={k} className="field">
                         {k}
-                        <input value={form[k] ?? ''} onChange={e => setForm({ ...form, [k]: e.target.value })} inputMode="decimal" />
+                        <ClearableInput value={form[k] ?? ''} onChange={e => setForm({ ...form, [k]: e.target.value })} inputMode="decimal" />
                       </label>
                     ))}
                     <button className="btn" onClick={() => upload(o.id)}>{t('Submit')}</button>

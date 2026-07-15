@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api.js';
+import ClearableInput from '../components/ClearableInput';
 
 export default function Goods() {
   const { t } = useTranslation();
@@ -114,7 +115,7 @@ export default function Goods() {
 
       <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <label>{t('Filter by category') || 'Filter by category'}: </label>
-        <input
+        <ClearableInput
           list="goods-category-filter-options"
           value={categoryFilter}
           onChange={(e) => {
@@ -159,15 +160,15 @@ export default function Goods() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Name') || 'Name'}
-              <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <ClearableInput required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Code') || 'Code'}
-              <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+              <ClearableInput value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 220 }}>
               {t('Category') || 'Category'}
-              <input
+              <ClearableInput
                 list="goods-category-options"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -181,7 +182,7 @@ export default function Goods() {
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
-              {t('Kind') || 'Kind'}
+              {t('Sale Mode') || 'Sale Mode'}
               <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
                 <option value="normal">{t('Normal') || 'Normal'}</option>
                 <option value="fresh_preorder">{t('Fresh pre-order') || 'Fresh pre-order'}</option>
@@ -189,23 +190,23 @@ export default function Goods() {
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Source price (admin)') || 'Source price (admin)'}
-              <input type="number" step="0.01" value={form.source_price} onChange={(e) => setForm({ ...form, source_price: e.target.value })} />
+              <ClearableInput type="number" step="0.01" value={form.source_price} onChange={(e) => setForm({ ...form, source_price: e.target.value })} />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Market price (consumer)') || 'Market price (consumer)'}
-              <input type="number" step="0.01" value={form.market_price} onChange={(e) => setForm({ ...form, market_price: e.target.value })} />
+              <ClearableInput type="number" step="0.01" value={form.market_price} onChange={(e) => setForm({ ...form, market_price: e.target.value })} />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Promotion price (consumer, final)') || 'Promotion price (consumer, final)'}
-              <input type="number" step="0.01" value={form.promotion_price} onChange={(e) => setForm({ ...form, promotion_price: e.target.value })} />
+              <ClearableInput type="number" step="0.01" value={form.promotion_price} onChange={(e) => setForm({ ...form, promotion_price: e.target.value })} />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 140 }}>
               {t('Stock') || 'Stock'}
-              <input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
+              <ClearableInput type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Available from') || 'Available from'}
-              <input type="date" value={form.available_from} onChange={(e) => setForm({ ...form, available_from: e.target.value })} />
+              <ClearableInput type="date" value={form.available_from} onChange={(e) => setForm({ ...form, available_from: e.target.value })} />
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 140, fontWeight: 700, marginTop: 12 }}>
               <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} style={{ width: 20, height: 20, margin: 0 }} />
@@ -215,7 +216,8 @@ export default function Goods() {
           <div style={{ marginBottom: 8, marginTop: 12 }}>
             <label style={{ display: 'flex', flexDirection: 'column', marginBottom: 4 }}>
               {t('Image URLs') || 'Image URLs'}
-              <textarea
+              <ClearableInput
+                as="textarea"
                 value={imagesInput}
                 onChange={(e) => setImagesInput(e.target.value)}
                 placeholder={t('One URL per line or comma separated') || 'One URL per line or comma separated'}

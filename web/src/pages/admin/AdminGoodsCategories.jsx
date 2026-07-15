@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../api.js';
+import ClearableInput from '../../components/ClearableInput';
 
 export default function AdminGoodsCategories() {
   const { t } = useTranslation();
@@ -73,7 +74,7 @@ export default function AdminGoodsCategories() {
       <h2 className="h2">{t('Goods Category') || 'Goods Category'}</h2>
       <form onSubmit={submit} style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input
+          <ClearableInput
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t('Category name') || 'Category name'}
@@ -91,9 +92,9 @@ export default function AdminGoodsCategories() {
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {categories.map((category) => (
                 <li key={category.id} style={{ padding: '10px 12px', border: '1px solid #eee', borderRadius: 6, marginBottom: 8, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                  {editingId === category.id ? (
+                    {editingId === category.id ? (
                     <>
-                      <input value={editingName} onChange={(e) => setEditingName(e.target.value)} style={{ flex: 1 }} />
+                      <ClearableInput value={editingName} onChange={(e) => setEditingName(e.target.value)} style={{ flex: 1 }} />
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button type="button" onClick={() => saveEdit(category.id)}>{t('Save') || 'Save'}</button>
                         <button type="button" onClick={cancelEdit}>{t('Cancel') || 'Cancel'}</button>

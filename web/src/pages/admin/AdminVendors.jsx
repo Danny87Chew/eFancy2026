@@ -4,6 +4,7 @@ import { api } from '../../api';
 import { ALL_ROLES, ROLE_LABELS } from '../../roles';
 import { useAuth } from '../../state/AuthContext.jsx';
 import { useTranslation } from 'react-i18next';
+import ClearableInput from '../../components/ClearableInput';
 
 const NON_VENDOR_ROLES = new Set(['consumer', 'admin', 'super_admin']);
 const VENDOR_ROLES = ALL_ROLES.filter((role) => !NON_VENDOR_ROLES.has(role));
@@ -86,7 +87,7 @@ export default function AdminVendors() {
 
         <label className="field" style={{ marginTop: 12 }}>
           {t('Search')}
-          <input
+          <ClearableInput
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             placeholder={t('Search by name, code or mobile')}

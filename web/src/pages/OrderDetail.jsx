@@ -4,6 +4,7 @@ import { api } from '../api';
 import QRImage from '../components/QRImage.jsx';
 import ChangeShopModal from '../components/ChangeShopModal.jsx';
 import DeliveryAddressSelector from '../components/DeliveryAddressSelector.jsx';
+import CuttingInfo from '../components/CuttingInfo.jsx';
 import { statusLabel, moduleLabel } from '../utils/status';
 import { useDraft } from '../state/OrderDraftContext.jsx';
 import { useCurrency } from '../state/CurrencyContext.jsx';
@@ -574,6 +575,7 @@ export default function OrderDetail() {
                       <span style={{ fontWeight: 700 }}>{fmt(promoUnit)}</span>
                     </div>
                   ) : null}
+                  <CuttingInfo cutting={meta?.cutting || null} />
                 </div>
                 <div style={{ fontWeight: 600 }}>
                   {showCrossed ? fmt(promoUnit * it.qty) : fmt(it.unit_price * it.qty)}

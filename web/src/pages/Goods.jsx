@@ -2,23 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api.js';
 import ClearableInput from '../components/ClearableInput';
-
-const getCuttingOptions = (category = '') => {
-  const normalized = String(category || '').trim().toLowerCase();
-  // Remove common qualifiers like Fresh/Frozen/Cooked so e.g. "Fresh Chicken" matches "chicken"
-  const cleaned = normalized.replace(/\b(fresh|frozen|cooked)\b/g, '').replace(/\s+/g, ' ').trim();
-
-  if (['beef', 'lamb', 'mutton'].includes(cleaned)) {
-    return ['100g/Pcs', '150g/Pcs', '200g/Pcs', '250g/Pcs', '300g/Pcs', '350g/Pcs', '400g/Pcs'];
-  }
-  if (cleaned === 'fish') {
-    return ['Butter Fly', 'Whole', 'Half', 'Quarter', '8 pieces', 'Small pieces'];
-  }
-  if (['chicken', 'checken', 'duck', 'goose'].includes(cleaned)) {
-    return ['Whole', 'Half', 'Quarter', '8 pieces', 'Small pieces'];
-  }
-  return [];
-};
+import CuttingSelector, { getCuttingOptions } from '../components/CuttingSelector.jsx';
 
 export default function Goods() {
   const { t } = useTranslation();
@@ -212,17 +196,7 @@ export default function Goods() {
                 <option value="fresh_preorder">{t('Fresh pre-order') || 'Fresh pre-order'}</option>
               </select>
             </label>
-            {getCuttingOptions(form.category).length > 0 ? (
-              <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
-                {t('Cuttings') || 'Cuttings'}
-                <select value={form.cutting || ''} onChange={(e) => setForm({ ...form, cutting: e.target.value })}>
-                  <option value="">{t('Select cutting') || 'Select cutting'}</option>
-                  {getCuttingOptions(form.category).map((option) => (
-                      <option key={option} value={option}>{t(option) || option}</option>
-                    ))}
-                </select>
-              </label>
-            ) : null}
+            <CuttingSelector category={form.category} value={form.cutting} onChange={(cutting) => setForm({ ...form, cutting })} />
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Source price (admin)') || 'Source price (admin)'}
               <ClearableInput type="number" step="0.01" value={form.source_price} onChange={(e) => setForm({ ...form, source_price: e.target.value })} />

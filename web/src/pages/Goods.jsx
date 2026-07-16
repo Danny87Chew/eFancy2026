@@ -3,6 +3,23 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api.js';
 import ClearableInput from '../components/ClearableInput';
 
+const getCuttingOptions = (category = '') => {
+  const normalized = String(category || '').trim().toLowerCase();
+  // Remove common qualifiers like Fresh/Frozen/Cooked so e.g. "Fresh Chicken" matches "chicken"
+  const cleaned = normalized.replace(/\b(fresh|frozen|cooked)\b/g, '').replace(/\s+/g, ' ').trim();
+
+  if (['beef', 'lamb', 'mutton'].includes(cleaned)) {
+    return ['100g/Pcs', '150g/Pcs', '200g/Pcs', '250g/Pcs', '300g/Pcs', '350g/Pcs', '400g/Pcs'];
+  }
+  if (cleaned === 'fish') {
+    return ['Butter Fly', 'Whole', 'Half', 'Quarter', '8 pieces', 'Small pieces'];
+  }
+  if (['chicken', 'checken', 'duck', 'goose'].includes(cleaned)) {
+    return ['Whole', 'Half', 'Quarter', '8 pieces', 'Small pieces'];
+  }
+  return [];
+};
+
 export default function Goods() {
   const { t } = useTranslation();
   const [goods, setGoods] = useState([]);
@@ -11,7 +28,7 @@ export default function Goods() {
   const [loading, setLoading] = useState(false);
   const hasActiveFilter = Boolean(categoryFilter?.trim());
 
-  const emptyForm = { name: '', code: '', category: '', kind: 'normal', source_price: '', market_price: '', promotion_price: '', stock: '', available_from: '', active: true };
+  const emptyForm = { name: '', code: '', category: '', kind: 'normal', cutting: '', source_price: '', market_price: '', promotion_price: '', stock: '', available_from: '', active: true };
   const [form, setForm] = useState(emptyForm);
   const [imagesInput, setImagesInput] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -80,11 +97,13 @@ export default function Goods() {
   function startEdit(good) {
     setEditingId(good.id);
     setShowAddForm(true);
+    const options = getCuttingOptions(good.category || '');
     setForm({
       name: good.name || '',
       code: good.code || '',
       category: good.category || '',
       kind: good.kind || 'normal',
+      cutting: good.cutting || (options.includes('Whole') ? 'Whole' : ''),
       source_price: good.source_price ?? good.price ?? '',
       market_price: good.market_price ?? '',
       promotion_price: good.promotion_price ?? '',
@@ -171,7 +190,12 @@ export default function Goods() {
               <ClearableInput
                 list="goods-category-options"
                 value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                onChange={(e) => {
+                  const nextCategory = e.target.value;
+                    const options = getCuttingOptions(nextCategory);
+                    const nextCutting = options.includes(form.cutting) ? form.cutting : (options.includes('Whole') ? 'Whole' : '');
+                    setForm({ ...form, category: nextCategory, cutting: nextCutting });
+                }}
               />
             </label>
             <datalist id="goods-category-options">
@@ -188,6 +212,17 @@ export default function Goods() {
                 <option value="fresh_preorder">{t('Fresh pre-order') || 'Fresh pre-order'}</option>
               </select>
             </label>
+            {getCuttingOptions(form.category).length > 0 ? (
+              <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
+                {t('Cuttings') || 'Cuttings'}
+                <select value={form.cutting || ''} onChange={(e) => setForm({ ...form, cutting: e.target.value })}>
+                  <option value="">{t('Select cutting') || 'Select cutting'}</option>
+                  {getCuttingOptions(form.category).map((option) => (
+                      <option key={option} value={option}>{t(option) || option}</option>
+                    ))}
+                </select>
+              </label>
+            ) : null}
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Source price (admin)') || 'Source price (admin)'}
               <ClearableInput type="number" step="0.01" value={form.source_price} onChange={(e) => setForm({ ...form, source_price: e.target.value })} />
@@ -253,7 +288,7 @@ export default function Goods() {
                           <button type="button" onClick={() => deleteGood(g.id)}>{t('Remove') || 'Remove'}</button>
                         </div>
                       </div>
-                      <div style={{ color: '#666' }}>{g.kind} · Source: ${g.source_price ?? g.price ?? 0} · Market: ${g.market_price ?? 0} · Promotion: ${g.promotion_price ?? 0} · stock: {g.stock}</div>
+                      <div style={{ color: '#666' }}>{g.kind} · Source: ${g.source_price ?? g.price ?? 0} · Market: ${g.market_price ?? 0} · Promotion: ${g.promotion_price ?? 0} · stock: {g.stock}{g.cutting ? ` · Cutting: ${t(g.cutting) || g.cutting}` : ''}</div>
                       {Array.isArray(g.images) && g.images.length > 0 && (
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                           {g.images.map((img, idx) => (

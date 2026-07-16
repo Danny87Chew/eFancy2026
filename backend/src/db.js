@@ -115,6 +115,7 @@ function init() {
     promotion_price REAL NOT NULL DEFAULT 0,
     stock INTEGER NOT NULL DEFAULT 0,
     available_from TEXT, -- for pre-order availability
+    cutting TEXT,
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -141,6 +142,9 @@ function init() {
   }
   if (!goodCols.includes('promotion_price')) {
     db.prepare('ALTER TABLE goods ADD COLUMN promotion_price REAL NOT NULL DEFAULT 0').run();
+  }
+  if (!goodCols.includes('cutting')) {
+    db.prepare('ALTER TABLE goods ADD COLUMN cutting TEXT').run();
   }
   // ensure code uniqueness for goods if desired (not enforced for name)
   db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_goods_code_unique ON goods(code)').run();

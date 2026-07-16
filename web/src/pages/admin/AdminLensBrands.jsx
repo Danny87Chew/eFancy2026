@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../api';
+import ClearableInput from '../../components/ClearableInput';
 import PhoneInput from '../../components/PhoneInput.jsx';
 
 export default function AdminLensBrands() {
@@ -217,9 +218,9 @@ export default function AdminLensBrands() {
               </label>
           </div>
         </label>
-        <label className="field">{t('Brand')}<input value={form.brand || ''} onChange={e => setForm({ ...form, brand: e.target.value })} /></label>
-        <label className="field">{t('Name')}<input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
-        <label className="field">{t('Lens Code')}<input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></label>
+        <label className="field">{t('Brand')}<ClearableInput value={form.brand || ''} onChange={e => setForm({ ...form, brand: e.target.value })} /></label>
+        <label className="field">{t('Name')}<ClearableInput value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
+        <label className="field">{t('Lens Code')}<ClearableInput value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></label>
         <label className="field">{t('Vendor name')}
           <select value={vendorSelectedId || ''} onChange={e => {
             const id = e.target.value || null;
@@ -266,11 +267,11 @@ export default function AdminLensBrands() {
           <PhoneInput label={t('Vendor mobile number')} value={form.vendor_mobile || ''} onChange={v => setForm({ ...form, vendor_mobile: v })} />
         </div>
         <label className="field">{t('Vendor address')}<textarea rows={2} value={form.vendor_address} onChange={e => setForm({ ...form, vendor_address: e.target.value })} /></label>
-        <label className="field">{t('Road Name')}<input value={form.vendor_road || ''} onChange={e => setForm({ ...form, vendor_road: e.target.value })} /></label>
+        <label className="field">{t('Road Name')}<ClearableInput value={form.vendor_road || ''} onChange={e => setForm({ ...form, vendor_road: e.target.value })} /></label>
         <label className="field" style={{ marginTop: 8 }}>
           {t('Postcode')}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
-            <input value={form.vendor_postcode || ''} onChange={e => setForm({ ...form, vendor_postcode: e.target.value })} style={{ flex: 1 }} />
+            <ClearableInput value={form.vendor_postcode || ''} onChange={e => setForm({ ...form, vendor_postcode: e.target.value })} style={{ flex: 1 }} />
             <button
               type="button"
               className="btn secondary"
@@ -286,18 +287,18 @@ export default function AdminLensBrands() {
         <div style={{ display: 'flex', gap: 12, marginTop: 8, alignItems: 'flex-start' }}>
             <label className="field" style={{ flex: 1, minWidth: 0 }}>
             {t('Building Name:')}
-            <input placeholder={t('Building name')} value={form.vendor_building || ''} onChange={e => setForm({ ...form, vendor_building: e.target.value })} />
+            <ClearableInput placeholder={t('Building name')} value={form.vendor_building || ''} onChange={e => setForm({ ...form, vendor_building: e.target.value })} />
           </label>
           <label className="field" style={{ width: 60 }}>
             {t('Floor:') || t('Floor') || 'Floor:'}
-            <input placeholder={t('Floor')} value={form.vendor_floor || ''} onChange={e => setForm({ ...form, vendor_floor: e.target.value })} style={{ width: '100%' }} />
+            <ClearableInput placeholder={t('Floor')} value={form.vendor_floor || ''} onChange={e => setForm({ ...form, vendor_floor: e.target.value })} style={{ width: '100%' }} />
           </label>
           <label className="field" style={{ width: 110 }}>
             {t('Unit:') || t('Unit') || 'Unit:'}
-            <input placeholder={t('Unit number')} value={form.vendor_unit || ''} onChange={e => setForm({ ...form, vendor_unit: e.target.value })} style={{ width: '100%' }} />
+            <ClearableInput placeholder={t('Unit number')} value={form.vendor_unit || ''} onChange={e => setForm({ ...form, vendor_unit: e.target.value })} style={{ width: '100%' }} />
           </label>
         </div>
-        <label className="field">{t('Price multiplier')}<input value={form.price_multiplier} onChange={e => setForm({ ...form, price_multiplier: e.target.value })} inputMode="decimal" /></label>
+        <label className="field">{t('Price multiplier')}<ClearableInput value={form.price_multiplier} onChange={e => setForm({ ...form, price_multiplier: e.target.value })} inputMode="decimal" /></label>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn secondary" onClick={() => { setForm({ brand: '', name: '', code: '', price_multiplier: '1.0', vendor_name: '', vendor_office: '', vendor_mobile: '', vendor_address: '', vendor_road: '', vendor_postcode: '', vendor_building: '', vendor_floor: '', vendor_unit: '', active: 1 }); setShowAddBrand(false); }}>{t('Form.Cancel')}</button>
           <button className="btn" onClick={create}>{t('Add brand')}</button>
@@ -325,7 +326,7 @@ export default function AdminLensBrands() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 Price multiplier
-                <input
+                <ClearableInput
                   value={editMultiplier}
                   onChange={e => setEditMultiplier(e.target.value)}
                   inputMode="decimal"
@@ -372,9 +373,9 @@ export default function AdminLensBrands() {
                   </label>
                 </div>
               </label>
-              <label className="field">{t('Brand')}<input value={editBrand} onChange={e => setEditBrand(e.target.value)} /></label>
-              <label className="field">{t('Name')}<input value={editName} onChange={e => setEditName(e.target.value)} /></label>
-              <label className="field">{t('Lens Code')}<input value={editCode} onChange={e => setEditCode(e.target.value)} /></label>
+              <label className="field">{t('Brand')}<ClearableInput value={editBrand} onChange={e => setEditBrand(e.target.value)} /></label>
+              <label className="field">{t('Name')}<ClearableInput value={editName} onChange={e => setEditName(e.target.value)} /></label>
+              <label className="field">{t('Lens Code')}<ClearableInput value={editCode} onChange={e => setEditCode(e.target.value)} /></label>
           <label className="field">{t('Vendor name')}
                 <select value={editVendorSelectedId || ''} onChange={e => {
                   const id = e.target.value || null;
@@ -410,11 +411,11 @@ export default function AdminLensBrands() {
                 <PhoneInput label={t('Vendor mobile number')} value={editVendorMobile || ''} onChange={v => setEditVendorMobile(v)} />
               </div>
               <label className="field">{t('Vendor address')}<textarea rows={2} value={editVendorAddress} onChange={e => setEditVendorAddress(e.target.value)} /></label>
-              <label className="field">{t('Road Name')}<input value={editVendorRoad || ''} onChange={e => setEditVendorRoad(e.target.value)} /></label>
+              <label className="field">{t('Road Name')}<ClearableInput value={editVendorRoad || ''} onChange={e => setEditVendorRoad(e.target.value)} /></label>
               <label className="field" style={{ marginTop: 8 }}>
                 Postcode
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
-                  <input value={editVendorPostcode || ''} onChange={e => setEditVendorPostcode(e.target.value)} style={{ flex: 1 }} />
+                  <ClearableInput value={editVendorPostcode || ''} onChange={e => setEditVendorPostcode(e.target.value)} style={{ flex: 1 }} />
                   <button
                     type="button"
                     className="btn secondary"
@@ -430,15 +431,15 @@ export default function AdminLensBrands() {
               <div style={{ display: 'flex', gap: 12, marginTop: 8, alignItems: 'flex-start' }}>
                 <label className="field" style={{ flex: 1, minWidth: 0 }}>
                   {t('Building Name:')}
-                  <input placeholder={t('Building name')} value={editVendorBuilding || ''} onChange={e => setEditVendorBuilding(e.target.value)} />
+                  <ClearableInput placeholder={t('Building name')} value={editVendorBuilding || ''} onChange={e => setEditVendorBuilding(e.target.value)} />
                 </label>
                 <label className="field" style={{ width: 60 }}>
                   {t('Floor:')}
-                  <input placeholder={t('Floor')} value={editVendorFloor || ''} onChange={e => setEditVendorFloor(e.target.value)} style={{ width: '100%' }} />
+                  <ClearableInput placeholder={t('Floor')} value={editVendorFloor || ''} onChange={e => setEditVendorFloor(e.target.value)} style={{ width: '100%' }} />
                 </label>
                 <label className="field" style={{ width: 110 }}>
                   {t('Unit:')}
-                  <input placeholder={t('Unit number')} value={editVendorUnit || ''} onChange={e => setEditVendorUnit(e.target.value)} style={{ width: '100%' }} />
+                  <ClearableInput placeholder={t('Unit number')} value={editVendorUnit || ''} onChange={e => setEditVendorUnit(e.target.value)} style={{ width: '100%' }} />
                 </label>
               </div>
             </div>

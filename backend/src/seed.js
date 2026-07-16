@@ -81,6 +81,11 @@ function run() {
     }
   }
 
+  // Seed common fresh/grocery categories (meats / fish) so cutting options apply
+  const defaultCategories = ['Beef', 'Lamb', 'Mutton', 'Fish', 'Chicken', 'Duck', 'Goose'];
+  const insCat = db.prepare('INSERT OR IGNORE INTO goods_categories (name) VALUES (?)');
+  for (const c of defaultCategories) insCat.run(c);
+
   console.log('Seed complete.');
 }
 

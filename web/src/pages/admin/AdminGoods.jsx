@@ -3,6 +3,17 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../api.js';
 import ClearableInput from '../../components/ClearableInput';
 
+const getCuttingOptions = (category = '') => {
+  const normalized = String(category || '').trim().toLowerCase();
+  if (['beef', 'lamb', 'mutton'].includes(normalized)) {
+    return ['100g/Pcs', '150g/Pcs', '200g/Pcs', '250g/Pcs', '300g/Pcs', '350g/Pcs', '400g/Pcs'];
+  }
+  if (['fish', 'chicken', 'duck', 'goose'].includes(normalized)) {
+    return ['Butter Fly', 'Whole', 'Half', 'Quarter', '8 pieces', 'Small pieces'];
+  }
+  return [];
+};
+
 export default function AdminGoods() {
   const { t } = useTranslation();
   const [goods, setGoods] = useState([]);
@@ -10,7 +21,7 @@ export default function AdminGoods() {
   const [loading, setLoading] = useState(false);
   const hasActiveFilter = Boolean(categoryFilter?.trim());
 
-  const emptyForm = { name: '', code: '', category: '', kind: 'normal', source_price: '', market_price: '', promotion_price: '', stock: '', available_from: '', active: true };
+  const emptyForm = { name: '', code: '', category: '', kind: 'normal', cutting: '', source_price: '', market_price: '', promotion_price: '', stock: '', available_from: '', active: true };
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -74,6 +85,7 @@ export default function AdminGoods() {
       code: good.code || '',
       category: good.category || '',
       kind: good.kind || 'normal',
+      cutting: good.cutting || '',
       source_price: good.source_price ?? good.price ?? '',
       market_price: good.market_price ?? '',
       promotion_price: good.promotion_price ?? '',
@@ -151,7 +163,11 @@ export default function AdminGoods() {
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Category') || 'Category'}
-              <ClearableInput value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+              <ClearableInput value={form.category} onChange={(e) => {
+                const nextCategory = e.target.value;
+                const nextCutting = getCuttingOptions(nextCategory).includes(form.cutting) ? form.cutting : '';
+                setForm({ ...form, category: nextCategory, cutting: nextCutting });
+              }} />
             </label>
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
@@ -162,6 +178,17 @@ export default function AdminGoods() {
                 <option value="fresh_preorder">{t('Fresh pre-order') || 'Fresh pre-order'}</option>
               </select>
             </label>
+            {getCuttingOptions(form.category).length > 0 ? (
+              <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
+                {t('Cuttings') || 'Cuttings'}
+                <select value={form.cutting || ''} onChange={(e) => setForm({ ...form, cutting: e.target.value })}>
+                  <option value="">{t('Select cutting') || 'Select cutting'}</option>
+                  {getCuttingOptions(form.category).map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Source price (admin)') || 'Source price (admin)'}
               <ClearableInput type="number" step="0.01" value={form.source_price} onChange={(e) => setForm({ ...form, source_price: e.target.value })} />
@@ -214,7 +241,7 @@ export default function AdminGoods() {
                           <button type="button" onClick={() => deleteGood(g.id)}>{t('Remove') || 'Remove'}</button>
                         </div>
                       </div>
-                      <div style={{ color: '#666' }}>{g.kind} · Source: ${g.source_price ?? g.price ?? 0} · Market: ${g.market_price ?? 0} · Promotion: ${g.promotion_price ?? 0} · stock: {g.stock}</div>
+                      <div style={{ color: '#666' }}>{g.kind} · Source: ${g.source_price ?? g.price ?? 0} · Market: ${g.market_price ?? 0} · Promotion: ${g.promotion_price ?? 0} · stock: {g.stock}{g.cutting ? ` · Cutting: ${g.cutting}` : ''}</div>
                     </div>
                   </li>
                 ))}

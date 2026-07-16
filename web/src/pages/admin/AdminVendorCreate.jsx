@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../api';
 import { useAuth } from '../../state/AuthContext.jsx';
 import { ALL_ROLES, ROLE_LABELS } from '../../roles';
+import ClearableInput from '../../components/ClearableInput';
 import PhoneInput from '../../components/PhoneInput.jsx';
 
 const NON_VENDOR_ROLES = new Set(['consumer', 'admin', 'super_admin']);
@@ -714,7 +715,7 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
   const renderShopField = (key, label = key) => (
     <label key={key} className="field">
       {label}
-      <input value={shopForm[key]} onChange={e => setShopForm({ ...shopForm, [key]: e.target.value })} />
+      <ClearableInput value={shopForm[key]} onChange={e => setShopForm({ ...shopForm, [key]: e.target.value })} />
     </label>
   );
 
@@ -735,7 +736,7 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
     <label className="field">
       {label}
       <div style={{ position: 'relative' }}>
-        <input
+        <ClearableInput
           value={shopForm[key]}
           onChange={(e) => setShopForm({ ...shopForm, [key]: e.target.value })}
           style={{ paddingLeft: 36, width: '100%' }}
@@ -875,7 +876,7 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
 
         <label className="field" style={{ marginTop: 10 }}>
           {t('Vendor name')}
-          <input
+          <ClearableInput
             value={vendorForm.nickname}
             onChange={(e) => setVendorForm((prev) => ({ ...prev, nickname: e.target.value }))}
             placeholder={t('e.g. Dan Optical')}
@@ -883,7 +884,7 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
         </label>
         <label className="field">
           {t('Business Licence')}
-          <input
+          <ClearableInput
             value={vendorForm.business_licence}
             onChange={(e) => setVendorForm((prev) => ({ ...prev, business_licence: e.target.value }))}
             placeholder={t('Business licence number')}
@@ -893,7 +894,7 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
           <div style={{ flex: 1 }}>
             <label className="field">
               {t('Owner name')}
-              <input
+              <ClearableInput
                 value={vendorForm.owner_name}
                 onChange={(e) => setVendorForm((prev) => ({ ...prev, owner_name: e.target.value }))}
                 placeholder={t('Owner name')}
@@ -971,7 +972,7 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
             <label className="field">
               {t('Province/State')}
               <div style={{ position: 'relative' }}>
-                <input
+                <ClearableInput
                   list="vendor-state-list"
                   value={shopForm.state}
                   onChange={(e) => {
@@ -987,15 +988,6 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
                   placeholder={t('Select or type province/state')}
                   style={{ paddingLeft: 36, width: '100%' }}
                 />
-                {renderClearX('state', () => {
-                  setShopForm({
-                    ...shopForm,
-                    state: '', city: '', address: '', postcode: '', road: '',
-                    town: '', district: '', mrt: '',
-                  });
-                  setRoadOptions([]);
-                  setPostcodeLookup({ loading: false, error: '' });
-                })}
               </div>
               <datalist id="vendor-state-list">
                 {filteredStates.map((s) => (
@@ -1008,7 +1000,7 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
             <label className="field">
               {t('City')}
               <div style={{ position: 'relative' }}>
-                <input
+                <ClearableInput
                   list="vendor-city-list"
                   value={shopForm.city}
                   onChange={(e) => {
@@ -1024,15 +1016,6 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
                   placeholder={t('Select or type city')}
                   style={{ paddingLeft: 36, width: '100%' }}
                 />
-                {renderClearX('city', () => {
-                  setShopForm({
-                    ...shopForm,
-                    city: '', address: '', postcode: '', road: '',
-                    town: '', district: '', mrt: '',
-                  });
-                  setRoadOptions([]);
-                  setPostcodeLookup({ loading: false, error: '' });
-                })}
               </div>
               <datalist id="vendor-city-list">
                 {filteredCities.map((c) => (
@@ -1058,14 +1041,13 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
           <label className="field">
             {t('Road Name')}
             <div style={{ position: 'relative' }}>
-              <input
+              <ClearableInput
                 list="vendor-road-list"
                 value={shopForm.road}
                 onChange={(e) => setShopForm({ ...shopForm, road: e.target.value })}
                 placeholder={t('Select or type road name')}
                 style={{ paddingLeft: 36, width: '100%' }}
               />
-              {renderClearX('road')}
             </div>
             <datalist id="vendor-road-list">
               {(shopForm.country === 'SG'
@@ -1084,17 +1066,16 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
             <label className="field" style={{ flex: 1, minWidth: 0 }}>
               {t('Building Name:')}
               <div style={{ position: 'relative' }}>
-                  <input placeholder={t('Building name')} value={shopForm.building_name || ''} onChange={(e) => setShopForm({ ...shopForm, building_name: e.target.value })} style={{ paddingLeft: 36, width: '100%' }} />
-                {renderClearX('building_name')}
+                  <ClearableInput placeholder={t('Building name')} value={shopForm.building_name || ''} onChange={(e) => setShopForm({ ...shopForm, building_name: e.target.value })} style={{ paddingLeft: 36, width: '100%' }} />
               </div>
             </label>
             <label className="field" style={{ width: 60 }}>
               {t('Floor:') || t('Floor') || 'Floor:'}
-                <input placeholder={t('Floor')} value={shopForm.floor_number || ''} onChange={(e) => setShopForm({ ...shopForm, floor_number: e.target.value })} style={{ width: '100%' }} />
+                <ClearableInput placeholder={t('Floor')} value={shopForm.floor_number || ''} onChange={(e) => setShopForm({ ...shopForm, floor_number: e.target.value })} style={{ width: '100%' }} />
             </label>
               <label className="field" style={{ width: 110 }}>
                 {t('Unit:') || t('Unit') || 'Unit:'}
-                <input placeholder={t('Unit number')} value={shopForm.unit_number || ''} onChange={(e) => setShopForm({ ...shopForm, unit_number: e.target.value })} style={{ width: '100%' }} />
+                <ClearableInput placeholder={t('Unit number')} value={shopForm.unit_number || ''} onChange={(e) => setShopForm({ ...shopForm, unit_number: e.target.value })} style={{ width: '100%' }} />
             </label>
           </div>
           <div className="row">
@@ -1102,7 +1083,7 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
                 {t('Postcode')}
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ position: 'relative', flex: 1 }}>
-                  <input
+                  <ClearableInput
                     value={shopForm.postcode}
                     onChange={(e) => setShopForm({ ...shopForm, postcode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
                     onBlur={(e) => { if (/^\d{6}$/.test(e.target.value)) lookupPostcode(e.target.value); }}
@@ -1111,7 +1092,6 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
                     placeholder={t('6-digit postcode')}
                     style={{ paddingLeft: 36, width: '100%' }}
                   />
-                  {renderClearX('postcode')}
                 </div>
                 <button
                   type="button"
@@ -1130,14 +1110,13 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
             <label className="field">
               {t('Town')}
               <div style={{ position: 'relative' }}>
-                <input
+                <ClearableInput
                   list="sg-towns-create"
                   value={shopForm.town}
                   onChange={e => setShopForm({ ...shopForm, town: e.target.value })}
                   placeholder={t('Select or type town')}
                   style={{ paddingLeft: 36, width: '100%' }}
                 />
-                {renderClearX('town')}
               </div>
               <datalist id="sg-towns-create">
                 {filteredTowns.map((t) => (
@@ -1151,14 +1130,13 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
               <label className="field">
                 {t('District')}
                 <div style={{ position: 'relative' }}>
-                  <input
+                  <ClearableInput
                     list="vendor-district-list"
                     value={shopForm.district}
                     onChange={(e) => setShopForm({ ...shopForm, district: e.target.value })}
                     placeholder={t('Select or type district')}
                     style={{ paddingLeft: 36, width: '100%' }}
                   />
-                  {renderClearX('district')}
                 </div>
                 <datalist id="vendor-district-list">
                   {filteredDistricts.map((d) => (
@@ -1172,14 +1150,13 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
             <label className="field">
               {t('MRT Stations')}
               <div style={{ position: 'relative' }}>
-                <input
+                <ClearableInput
                   list="sg-mrt-stations-create"
                   value={shopForm.mrt}
                   onChange={e => setShopForm({ ...shopForm, mrt: e.target.value })}
                   placeholder={t('Type station name')}
                   style={{ paddingLeft: 36, width: '100%' }}
                 />
-                {renderClearX('mrt')}
               </div>
               <datalist id="sg-mrt-stations-create">
                 {filteredMrtStations.map((station) => (
@@ -1285,7 +1262,7 @@ export default function AdminVendorCreate({ selfMode = false, onSelfFormChange, 
           {vendorForm.staffs.map((s, idx) => (
             <div key={`staff-${idx}`} style={{ borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 8 }}>
               <div className="label" style={{ marginBottom: 4, fontWeight: 700 }}>{t('Staff {{n}} Name', { n: idx + 1 })}</div>
-              <input
+              <ClearableInput
                 value={s.name || ''}
                 onChange={(e) => updateStaff(idx, { name: e.target.value })}
                 placeholder={t('Staff name')}

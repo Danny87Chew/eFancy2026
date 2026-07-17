@@ -6,9 +6,10 @@ import AdminVendorCreate from './admin/AdminVendorCreate.jsx';
 import PhoneInput from '../components/PhoneInput.jsx';
 import DeliveryAddressesList from '../components/DeliveryAddressesList.jsx';
 import { useTranslation } from 'react-i18next';
+import LanguageSelector from '../components/LanguageSelector.jsx';
 
 export default function Me() {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, logout } = useAuth();
   const [nickname, setNickname] = useState(user.nickname || '');
   const [realName, setRealName] = useState(user.real_name || '');
   const [mobile, setMobile] = useState(user.mobile || '');
@@ -93,8 +94,18 @@ export default function Me() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 className="h1">{t('Me')}</h1>
+        <h1 className="h1">{t('Settings')}</h1>
       </div>
+      <section className="settings-section">
+        <span className="settings-section-label">{t('Language')}</span>
+        <div className="settings-language-row">
+          <div>
+            <strong>{t('App language')}</strong>
+            <p>{t('Choose your preferred display language.')}</p>
+          </div>
+          <LanguageSelector />
+        </div>
+      </section>
       <div className="card">
         <div>{t('User ID')}: <strong>{user.user_code}</strong></div>
         <div>{t('Role')}: {t(ROLE_LABELS[user.role]) || user.role}</div>
@@ -159,6 +170,7 @@ export default function Me() {
               )}
             </div>
           )}
+          <button className="settings-logout" onClick={logout}>{t('Logout')}</button>
         </>
       )}
     </div>

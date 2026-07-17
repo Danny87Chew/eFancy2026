@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useTabs } from '../state/TabContext.jsx';
 
 const DEFAULT = [
   { key: 'espectacles', emoji: '👓', title: 'eSpectacles', to: '/espectacles' },
@@ -25,6 +26,7 @@ function loadInitial() {
 
 export default function Home() {
   const { t } = useTranslation();
+  const { openTab } = useTabs();
   const [tiles, setTiles] = useState(loadInitial);
   const [dragKey, setDragKey] = useState(null);
   const [overKey, setOverKey] = useState(null);
@@ -128,13 +130,13 @@ export default function Home() {
   };
 
   return (
-    <div>
-      <div>
-        <h1 className="h1" style={{ marginBottom: 2 }}>{t('Welcome to eFancy!')}</h1>
-      </div>
-      <p className="muted" style={{ marginTop: 6 }}>{t('Drag to reorder. On touch devices, press and hold a tile, then drag.')}</p>
+    <div className="home-page">
+      <Link to="/settings" className="home-hero">
+        <h1>{t('Welcome to eFancy!')}</h1>
+        <p>{t('Everything you need, in one convenient place.')}</p>
+      </Link>
       <div
-        className="home-grid"
+        className="home-grid home-grid-compact"
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
@@ -159,16 +161,17 @@ export default function Home() {
               className="home-tile"
               style={style}
               to={tile.to}
+              onClick={(e) => { onTileClick(e); if (!e.defaultPrevented) openTab(t(tile.title), tile.to); }}
               draggable
               onDragStart={onDragStart(tile.key)}
               onDragOver={onDragOver(tile.key)}
               onDrop={onDrop(tile.key)}
               onDragEnd={onDragEnd}
               onTouchStart={onTouchStart(tile.key)}
-              onClick={onTileClick}
             >
-              <div className="emoji">{tile.emoji}</div>
-              <div className="title" style={{ fontSize: 36 }}>{t(tile.title)}</div>
+              <div className="tile-icon">{tile.emoji}</div>
+              <div className="title">{t(tile.title)}</div>
+              <span className="tile-arrow" aria-hidden="true">→</span>
             </Link>
           );
         })}

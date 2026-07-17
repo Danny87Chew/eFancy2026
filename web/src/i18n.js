@@ -5,6 +5,12 @@ const resources = {
   en: {
     translation: {
       Me: 'Me',
+      Settings: 'Settings',
+      Close: 'Close',
+      'New tab': 'New tab',
+      Language: 'Language',
+      'App language': 'App language',
+      'Choose your preferred display language.': 'Choose your preferred display language.',
       'User ID': 'User ID',
       Role: 'User Type',
       Nickname: 'Nickname',
@@ -48,6 +54,8 @@ const resources = {
       'Your cart is empty. In this MVP, eSpectacles orders are checked out directly from the Ordering flow.': 'Your cart is empty. In this MVP, eSpectacles orders are checked out directly from the Ordering flow.',
       'Welcome to eFancy!': 'Welcome to eFancy!',
       'Welcome to eFancy': 'Welcome to eFancy',
+      'Everything you need, in one convenient place.': 'Everything you need, in one convenient place.',
+      'Explore services': 'Explore services',
       'I am a…': 'I am a…',
       'User Type Being Registered': 'User Type Being Registered',
       'OTP code': 'OTP code',
@@ -473,6 +481,12 @@ const resources = {
   zh: {
     translation: {
       Me: '我 的',
+      Settings: '设置',
+      Close: '关闭',
+      'New tab': '新标签页',
+      Language: '语言',
+      'App language': '应用语言',
+      'Choose your preferred display language.': '选择您偏好的显示语言。',
       'User ID': '用户 ID',
       Role: '用户种类',
       Nickname: '昵称',
@@ -544,6 +558,8 @@ const resources = {
       'Your cart is empty. In this MVP, eSpectacles orders are checked out directly from the Ordering flow.': '您的购物车为空。在此 MVP 中，e眼镜订单在下单流程中直接结账。',
       'Welcome to eFancy!': '欢迎来到 eFancy！',
       'Welcome to eFancy': '欢迎来到 eFancy',
+      'Everything you need, in one convenient place.': '您需要的一切，都在一个方便的地方。',
+      'Explore services': '探索服务',
       'I am a…': '我是…',
       'User Type Being Registered': '正在注册的用户类型',
       'OTP code': '验证码',

@@ -57,8 +57,8 @@ export default function Orders() {
       <h1 className="h1">{t('My Orders')}</h1>
       {/* Debug JSON removed to avoid leaking raw data in the UI */}
       {orders.length === 0 && <div className="card muted">{t('No orders yet.')}</div>}
-      {orders.map(o => (
-        <div key={o.id} className="card" style={{ padding: 0 }}>
+      {orders.map((o, idx) => (
+        <div key={o.id} className="card order-item" style={{ padding: 0, animationDelay: `${idx * 0.06}s` }}>
           <Link to={`/orders/${o.id}`} style={{ display: 'block', color: 'inherit', padding: '14px 14px 10px' }}
             onClick={e => handleOrderClick(e, o)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>

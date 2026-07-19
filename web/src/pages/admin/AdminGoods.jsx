@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../api.js';
 import ClearableInput from '../../components/ClearableInput';
 import CuttingSelector, { getCuttingOptions } from '../../components/CuttingSelector.jsx';
+import { getCategoryNameLabel } from '../../i18n.js';
 
 export default function AdminGoods() {
   const { t } = useTranslation();
@@ -11,15 +12,17 @@ export default function AdminGoods() {
   const [loading, setLoading] = useState(false);
   const hasActiveFilter = Boolean(categoryFilter?.trim());
 
-  const emptyForm = { name: '', code: '', category: '', kind: 'normal', cutting: '', source_price: '', market_price: '', promotion_price: '', stock: '', available_from: '', active: true };
+  const emptyForm = { name: '', code: '', category: '', kind: 'normal', cutting: '', source_price: '', market_price: '', promotion_price: '', stock: '', weight: '', available_from: '', active: true };
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [promotionPriceAuto, setPromotionPriceAuto] = useState(true);
   const [error, setError] = useState(null);
 
   function resetForm() {
     setForm({ ...emptyForm });
     setEditingId(null);
+    setPromotionPriceAuto(true);
     setShowAddForm(false);
   }
 
@@ -70,19 +73,24 @@ export default function AdminGoods() {
   function startEdit(good) {
     setEditingId(good.id);
     setShowAddForm(true);
+    const sourcePrice = good.source_price ?? good.price ?? '';
+    const marketPrice = good.market_price ?? '';
+    const promotionPrice = good.promotion_price ?? '';
     setForm({
       name: good.name || '',
       code: good.code || '',
       category: good.category || '',
       kind: good.kind || 'normal',
       cutting: good.cutting || '',
-      source_price: good.source_price ?? good.price ?? '',
-      market_price: good.market_price ?? '',
-      promotion_price: good.promotion_price ?? '',
+      source_price: sourcePrice,
+      market_price: marketPrice,
+      promotion_price: promotionPrice,
       stock: good.stock ?? '',
+      weight: good.weight ?? '',
       available_from: good.available_from || '',
       active: Boolean(good.active),
     });
+    setPromotionPriceAuto(promotionPrice === '' || String(promotionPrice) === String(marketPrice));
     setError(null);
   }
 
@@ -153,37 +161,79 @@ export default function AdminGoods() {
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Category') || 'Category'}
-              <ClearableInput value={form.category} onChange={(e) => {
-                const nextCategory = e.target.value;
-                const nextCutting = getCuttingOptions(nextCategory).includes(form.cutting) ? form.cutting : '';
-                setForm({ ...form, category: nextCategory, cutting: nextCutting });
-              }} />
+              <ClearableInput
+                list="admin-goods-category-options"
+                value={getCategoryNameLabel(form.category, t)}
+                onChange={(e) => {
+                  const nextDisplay = e.target.value;
+                  const matched = categories.find((c) => getCategoryNameLabel(c.name, t) === nextDisplay);
+                  const nextCategoryKey = matched ? matched.name : nextDisplay;
+                  const nextCutting = getCuttingOptions(nextCategoryKey).includes(form.cutting) ? form.cutting : '';
+                  setForm({ ...form, category: nextCategoryKey, cutting: nextCutting });
+                }}
+              />
             </label>
+            <datalist id="admin-goods-category-options">
+              {categories.map((category) => (
+                <option key={category.id} value={getCategoryNameLabel(category.name, t)}>
+                  {getCategoryNameLabel(category.name, t)}
+                </option>
+              ))}
+            </datalist>
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Sale Mode') || 'Sale Mode'}
               <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
                 <option value="normal">{t('Normal') || 'Normal'}</option>
-                <option value="fresh_preorder">{t('Fresh pre-order') || 'Fresh pre-order'}</option>
+                <option value="fresh_preorder">{t('Pre-Order') || 'Pre-Order'}</option>
               </select>
             </label>
             <CuttingSelector category={form.category} value={form.cutting} onChange={(cutting) => setForm({ ...form, cutting })} />
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Source price (admin)') || 'Source price (admin)'}
-              <ClearableInput type="number" step="0.01" value={form.source_price} onChange={(e) => setForm({ ...form, source_price: e.target.value })} />
+              <ClearableInput
+                type="number"
+                step="0.01"
+                value={form.source_price}
+                onChange={(e) => setForm({ ...form, source_price: e.target.value })}
+              />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Market price (consumer)') || 'Market price (consumer)'}
-              <ClearableInput type="number" step="0.01" value={form.market_price} onChange={(e) => setForm({ ...form, market_price: e.target.value })} />
+              <ClearableInput
+                type="number"
+                step="0.01"
+                value={form.market_price}
+                onChange={(e) => {
+                  const nextMarket = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    market_price: nextMarket,
+                    promotion_price: promotionPriceAuto ? nextMarket : prev.promotion_price,
+                  }));
+                }}
+              />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Promotion price (consumer, final)') || 'Promotion price (consumer, final)'}
-              <ClearableInput type="number" step="0.01" value={form.promotion_price} onChange={(e) => setForm({ ...form, promotion_price: e.target.value })} />
+              <ClearableInput
+                type="number"
+                step="0.01"
+                value={form.promotion_price}
+                onChange={(e) => {
+                  setPromotionPriceAuto(false);
+                  setForm({ ...form, promotion_price: e.target.value });
+                }}
+              />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 140 }}>
               {t('Stock') || 'Stock'}
               <ClearableInput type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', minWidth: 140 }}>
+              {t('Weight(gram)') || 'Weight(gram)'}
+              <ClearableInput type="number" value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
               {t('Available from') || 'Available from'}
@@ -214,14 +264,14 @@ export default function AdminGoods() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                         <div>
                           <strong>{g.name}</strong>
-                          <div style={{ color: '#666' }}>{g.code ? `Code: ${g.code}` : ''} {g.category ? `· ${g.category}` : ''}</div>
+                          <div style={{ color: '#666' }}>{g.code ? `Code: ${g.code}` : ''} {g.category ? `· ${getCategoryNameLabel(g.category, t)}` : ''}</div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
                           <button type="button" onClick={() => startEdit(g)}>{t('Edit') || 'Edit'}</button>
                           <button type="button" onClick={() => deleteGood(g.id)}>{t('Remove') || 'Remove'}</button>
                         </div>
                       </div>
-                      <div style={{ color: '#666' }}>{g.kind} · Source: ${g.source_price ?? g.price ?? 0} · Market: ${g.market_price ?? 0} · Promotion: ${g.promotion_price ?? 0} · stock: {g.stock}{g.cutting ? ` · Cutting: ${g.cutting}` : ''}</div>
+                      <div style={{ color: '#666' }}>{g.kind} · Source: ${g.source_price ?? g.price ?? 0} · Market: ${g.market_price ?? 0} · Promotion: ${g.promotion_price ?? 0} · stock: {g.stock}{g.weight ? ` · Weight: ${g.weight}g` : ''}{g.cutting ? ` · Cutting: ${g.cutting}` : ''}</div>
                     </div>
                   </li>
                 ))}

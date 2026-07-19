@@ -38,7 +38,7 @@ export default function Admin() {
       <h1 className="h1">{t('Administration')}</h1>
       <div ref={tabsRef} style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 12 }}>
         <NavLink to="frames" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Frames') || 'Frames'}</NavLink>
-        <NavLink to="goods-categories" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Goods Category') || 'Goods Category'}</NavLink>
+        <NavLink to="goods-categories" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Goods Category', { defaultValue: 'Goods Category' })}</NavLink>
         <NavLink to="vendors" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Vendors') || 'Vendors'}</NavLink>
         <NavLink to="lens-brands" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Lens brands') || 'Lens brands'}</NavLink>
         <NavLink to="orders" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Orders')}</NavLink>

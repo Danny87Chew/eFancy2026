@@ -675,12 +675,12 @@ router.get('/goods', authRequired, requireAdmin, (req, res) => {
   res.json({ goods: enrichGoodsWithImages(rows) });
 });
 
-// PATCH /api/admin/goods/:id  { name?, code?, category?, kind?, price?, source_price?, market_price?, promotion_price?, stock?, available_from?, cutting?, active?, images? }
+// PATCH /api/admin/goods/:id  { name?, code?, category?, kind?, price?, source_price?, market_price?, promotion_price?, stock?, weight?, available_from?, cutting?, active?, images? }
 router.patch('/goods/:id', authRequired, requireAdmin, (req, res) => {
   const existing = db.prepare('SELECT * FROM goods WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'not_found' });
 
-  const { name, code, category, kind, price, source_price, market_price, promotion_price, stock, available_from, active, images } = req.body || {};
+  const { name, code, category, kind, price, source_price, market_price, promotion_price, stock, weight, available_from, active, images } = req.body || {};
   const updates = [];
   const values = [];
 
@@ -714,6 +714,9 @@ router.patch('/goods/:id', authRequired, requireAdmin, (req, res) => {
   }
   if (stock !== undefined) {
     updates.push('stock = ?'); values.push(Number(stock) || 0);
+  }
+  if (weight !== undefined) {
+    updates.push('weight = ?'); values.push(Number(weight) || 0);
   }
   if (available_from !== undefined) {
     updates.push('available_from = ?'); values.push(available_from == null || String(available_from).trim() === '' ? null : String(available_from).trim());
@@ -771,23 +774,24 @@ router.delete('/goods/:id', authRequired, requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// POST /api/admin/goods  { name, code?, category?, kind?, price?, source_price?, market_price?, promotion_price?, stock?, available_from?, cutting?, active?, images? }
+// POST /api/admin/goods  { name, code?, category?, kind?, price?, source_price?, market_price?, promotion_price?, stock?, weight?, available_from?, cutting?, active?, images? }
 router.post('/goods', authRequired, requireAdmin, (req, res) => {
-  const { name, code, category, kind, price, source_price, market_price, promotion_price, stock, available_from, cutting, active, images } = req.body || {};
+  const { name, code, category, kind, price, source_price, market_price, promotion_price, stock, weight, available_from, cutting, active, images } = req.body || {};
   if (!name || !String(name).trim()) return res.status(400).json({ error: 'name_required' });
   const effectiveKind = kind === 'fresh_preorder' ? 'fresh_preorder' : 'normal';
   const effectiveCutting = cutting == null || String(cutting).trim() === '' ? null : String(cutting).trim();
   const effectiveSourcePrice = source_price != null ? Number(source_price) : (price != null ? Number(price) : 0);
   const effectiveMarketPrice = market_price != null ? Number(market_price) : 0;
   const effectivePromotionPrice = promotion_price != null ? Number(promotion_price) : 0;
+  const effectiveWeight = weight != null ? Number(weight) : 0;
   try {
     const info = db.prepare(
-      `INSERT INTO goods (name, code, category, kind, cutting, vendor_user_id, price, source_price, market_price, promotion_price, stock, available_from, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO goods (name, code, category, kind, cutting, vendor_user_id, price, source_price, market_price, promotion_price, stock, weight, available_from, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       String(name).trim(), code ? String(code).trim() : null, category ? String(category).trim() : null,
       effectiveKind, effectiveCutting, null, effectiveSourcePrice, effectiveSourcePrice, effectiveMarketPrice, effectivePromotionPrice,
-      Number(stock) || 0, available_from ? String(available_from) : null,
+      Number(stock) || 0, Number(effectiveWeight) || 0, available_from ? String(available_from) : null,
       active != null ? (active ? 1 : 0) : 1
     );
 

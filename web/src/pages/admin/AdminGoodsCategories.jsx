@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../api.js';
 import ClearableInput from '../../components/ClearableInput';
+import { getCategoryNameLabel } from '../../i18n.js';
 
 export default function AdminGoodsCategories() {
   const { t } = useTranslation();
@@ -71,7 +72,7 @@ export default function AdminGoodsCategories() {
 
   return (
     <div>
-      <h2 className="h2">{t('Goods Category') || 'Goods Category'}</h2>
+      <h2 className="h2">{t('Goods Category', { defaultValue: 'Goods Category' })}</h2>
       <form onSubmit={submit} style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <ClearableInput
@@ -102,7 +103,7 @@ export default function AdminGoodsCategories() {
                     </>
                   ) : (
                     <>
-                      <strong>{category.name}</strong>
+                      <strong>{getCategoryNameLabel(category.name, t)}</strong>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button type="button" onClick={() => startEdit(category)}>{t('Edit') || 'Edit'}</button>
                         <button type="button" onClick={() => removeCategory(category.id)}>{t('Delete') || 'Delete'}</button>

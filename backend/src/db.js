@@ -114,6 +114,7 @@ function init() {
     market_price REAL NOT NULL DEFAULT 0,
     promotion_price REAL NOT NULL DEFAULT 0,
     stock INTEGER NOT NULL DEFAULT 0,
+    weight INTEGER NOT NULL DEFAULT 0,
     available_from TEXT, -- for pre-order availability
     cutting TEXT,
     active INTEGER NOT NULL DEFAULT 1,
@@ -142,6 +143,9 @@ function init() {
   }
   if (!goodCols.includes('promotion_price')) {
     db.prepare('ALTER TABLE goods ADD COLUMN promotion_price REAL NOT NULL DEFAULT 0').run();
+  }
+  if (!goodCols.includes('weight')) {
+    db.prepare('ALTER TABLE goods ADD COLUMN weight INTEGER NOT NULL DEFAULT 0').run();
   }
   if (!goodCols.includes('cutting')) {
     db.prepare('ALTER TABLE goods ADD COLUMN cutting TEXT').run();

@@ -680,7 +680,7 @@ router.patch('/goods/:id', authRequired, requireAdmin, (req, res) => {
   const existing = db.prepare('SELECT * FROM goods WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'not_found' });
 
-  const { name, code, category, kind, price, source_price, market_price, promotion_price, stock, weight, available_from, active, images } = req.body || {};
+  const { name, code, category, kind, price, source_price, market_price, promotion_price, stock, weight, available_from, cutting, active, images } = req.body || {};
   const updates = [];
   const values = [];
 

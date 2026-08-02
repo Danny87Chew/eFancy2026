@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from './state/AuthContext.jsx';
 import { VENDOR_ROLES, ROLE_LABELS } from './roles.js';
@@ -18,6 +18,7 @@ import OrderDetail from './pages/OrderDetail.jsx';
 import Cart from './pages/Cart.jsx';
 import Me from './pages/Me.jsx';
 import Placeholder from './pages/Placeholder.jsx';
+import EFreshes from './pages/EFreshes.jsx';
 import Admin from './pages/admin/Admin.jsx';
 import VendorCheckup from './pages/vendor/VendorCheckup.jsx';
 import VendorManufacture from './pages/vendor/VendorManufacture.jsx';
@@ -43,6 +44,16 @@ function Protected({ children }) {
   if (loading) return <div className="content">{t('Loading')}</div>;
   if (!user) return <Navigate to="/login" replace />;
   return children;
+}
+
+const CART_STORAGE_KEY = 'efreshes-cart';
+function getCartCount() {
+  try {
+    const items = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]');
+    return items.length;
+  } catch (e) {
+    return 0;
+  }
 }
 
 function TopTabs({ isAdminLike, onLogout }) {
@@ -106,6 +117,7 @@ function TopTabs({ isAdminLike, onLogout }) {
 function BottomBar() {
   const { user, vendorContext, logout } = useAuth();
   const { t } = useTranslation();
+  const [cartCount, setCartCount] = useState(getCartCount());
   const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
   const isCheckupVendor = user && (
     user.role === 'spectacle_checkup_vendor' ||
@@ -130,16 +142,29 @@ function BottomBar() {
   const isVendorLike = isCheckupVendor || isProducerVendor || isLensVendor || isFrameVendor || isOtherVendor;
   const isAdminLike = isAdmin || isVendorLike;
   const showCartTab = !isVendorLike && !isAdmin;
+
+  useEffect(() => {
+    const updateCart = () => setCartCount(getCartCount());
+    window.addEventListener('storage', updateCart);
+    window.addEventListener('efreshes-cart-updated', updateCart);
+    return () => {
+      window.removeEventListener('storage', updateCart);
+      window.removeEventListener('efreshes-cart-updated', updateCart);
+    };
+  }, []);
+
   return (
     <nav className="bottombar">
+      {showCartTab && (
+        <NavLink to="/cart" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+          <span className="icon">🛒</span>
+          {t('Cart')}
+          {cartCount > 0 ? <span className="bot-tab-badge">{cartCount}</span> : null}
+        </NavLink>
+      )}
       {!isAdmin && (
         <NavLink to="/orders" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
           <span className="icon">📦</span>{t('Orders')}
-        </NavLink>
-      )}
-      {showCartTab && (
-        <NavLink to="/cart" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
-          <span className="icon">🛒</span>{t('Cart')}
         </NavLink>
       )}
       {isAdmin && (
@@ -247,7 +272,7 @@ export default function App() {
           <Route path="/espectacles/manual-eyesight" element={<Protected><ManualEyesight /></Protected>} />
           <Route path="/espectacles/manual-eyesight/:id" element={<Protected><ManualEyesight /></Protected>} />
           <Route path="/egroceries" element={<Protected><Placeholder title={t('eGroceries')} /></Protected>} />
-          <Route path="/efreshes" element={<Protected><Placeholder title={t('eFreshes')} /></Protected>} />
+          <Route path="/efreshes" element={<Protected><EFreshes /></Protected>} />
           <Route path="/flea-market" element={<Protected><Placeholder title={t('e-Flea Market')} /></Protected>} />
           <Route path="/eservices" element={<Protected><Placeholder title={t('eServices')} /></Protected>} />
           <Route path="/orders" element={<Protected><Orders /></Protected>} />

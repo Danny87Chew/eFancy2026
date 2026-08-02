@@ -117,6 +117,54 @@ router.post('/checkup', authRequired, (req, res) => {
   res.json({ order: loadOrder(info.lastInsertRowid) });
 });
 
+// POST /api/orders/efreshes  { items, total }
+router.post('/efreshes', authRequired, (req, res) => {
+  const { items, total } = req.body || {};
+  if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'items_required' });
+
+  const validatedItems = items.map((item) => {
+    const quantity = Number(item.quantity || 0);
+    const unit_price = Number(item.price || 0);
+    if (!item.name || quantity < 1 || unit_price < 0) {
+      throw new Error('invalid_item');
+    }
+    return {
+      ...item,
+      quantity,
+      unit_price,
+    };
+  });
+
+  const code = 'O' + nanoid(10).toUpperCase();
+  const finalTotal = Number(total != null ? total : validatedItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0));
+  const meta = { kind: 'efreshes', item_count: validatedItems.length };
+  const info = db
+    .prepare(
+      `INSERT INTO orders (order_code, user_id, module, status, total, meta_json)
+       VALUES (?, ?, 'efreshes', 'PendingForPayment', ?, ?)`
+    )
+    .run(code, req.user.id, finalTotal, JSON.stringify(meta));
+
+  const orderId = info.lastInsertRowid;
+  const insertItem = db.prepare(
+    `INSERT INTO order_items (order_id, kind, ref_id, label, qty, unit_price, meta_json)
+     VALUES (?, 'fresh', ?, ?, ?, ?, ?)`
+  );
+
+  for (const item of validatedItems) {
+    insertItem.run(
+      orderId,
+      item.goodId || null,
+      item.name,
+      item.quantity,
+      item.unit_price,
+      JSON.stringify({ category: item.category, cutting: item.cutting, weight: item.weight })
+    );
+  }
+
+  res.json({ order: loadOrder(orderId) });
+});
+
 // PATCH /api/orders/:id/checkup/shop  { shop_id }
 // Change the partner shop for a pending/paid (not finalised) checkup order.
 router.patch('/:id/checkup/shop', authRequired, (req, res) => {

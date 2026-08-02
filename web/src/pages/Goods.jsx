@@ -295,10 +295,15 @@ export default function Goods() {
                 {goods.map(g => (
                   <li key={g.id} style={{ padding: 12, border: '1px solid #eee', marginBottom: 8, borderRadius: 6 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
                         <div>
                           <strong>{g.name}</strong>
-                          <div style={{ color: '#666' }}>{g.code ? `Code: ${g.code}` : ''} {g.category ? `· ${getCategoryNameLabel(g.category, t)}` : ''}</div>
+                          <div style={{ color: '#666', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span>{g.code ? `Code: ${g.code}` : ''} {g.category ? `· ${getCategoryNameLabel(g.category, t)}` : ''}</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: Boolean(g.active) ? '#d1fae5' : '#fee2e2', color: Boolean(g.active) ? '#166534' : '#991b1b', fontWeight: 700, fontSize: 12 }}>
+                              {Boolean(g.active) ? (t('On Shelf') || 'On Shelf') : (t('Off Shelf') || 'Off Shelf')}
+                            </span>
+                          </div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
                           <button type="button" onClick={() => startEdit(g)}>{t('Edit') || 'Edit'}</button>

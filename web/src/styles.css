@@ -156,6 +156,7 @@ button { font-family: inherit; }
   .app .bottombar { max-width: 720px; }
 }
 .bot-tab {
+  position: relative;
   flex: 1;
   text-align: center;
   text-decoration: none;
@@ -165,7 +166,21 @@ button { font-family: inherit; }
   padding: 4px;
 }
 .bot-tab.active { color: var(--primary); font-weight: 700; }
-.bot-tab .icon { font-size: 22px; display: block; }
+.bot-tab .icon { font-size: 22px; display: inline-flex; align-items: center; gap: 6px; }
+.bot-tab-badge {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 28px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 
 /* Logout button should not stretch to fill space; keep compact */
 .bot-tab.bot-logout {

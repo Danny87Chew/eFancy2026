@@ -127,44 +127,49 @@ export default function Goods() {
         <button type="button" onClick={toggleAddForm} style={{ backgroundColor: '#007bff', color: '#fff', fontWeight: 700, fontSize: 16, padding: '10px 16px', border: 'none', borderRadius: 6, cursor: 'pointer' }}>{t('Add Goods') || 'Add Goods'}</button>
       </div>
 
-      <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <label style={{ whiteSpace: 'nowrap' }}>{t('Filter by category') || 'Filter by category'}: </label>
-        <div style={{ width: '33%', minWidth: 180, maxWidth: 260 }}>
-          <ClearableInput
-            list="goods-category-filter-options"
-            value={categoryFilter}
-            onChange={(e) => {
-              const nextValue = e.target.value;
-              setCategoryFilter(nextValue);
-              load(nextValue, preOrderOnly);
-            }}
-            style={{ width: '100%' }}
-          />
+      {!showAddForm && !editingId ? (
+        <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ whiteSpace: 'nowrap' }}>{t('Filter by category') || 'Filter by category'}: </label>
+          <div style={{ width: '33%', minWidth: 180, maxWidth: 260 }}>
+            <ClearableInput
+              list="goods-category-filter-options"
+              value={categoryFilter}
+              onChange={(e) => {
+                const nextValue = e.target.value;
+                setCategoryFilter(nextValue);
+                load(nextValue, preOrderOnly);
+              }}
+              style={{ width: '100%' }}
+            />
+          </div>
+          <datalist id="goods-category-filter-options">
+            {categories.map((category) => (
+              <option key={`filter-${category.id}`} value={category.name}>
+                {getCategoryNameLabel(category.name, t)}
+              </option>
+            ))}
+          </datalist>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, marginLeft: 'auto' }}>
+            <input
+              type="checkbox"
+              checked={preOrderOnly}
+              onChange={(e) => {
+                const nextValue = e.target.checked;
+                setPreOrderOnly(nextValue);
+                load(categoryFilter, nextValue);
+              }}
+              style={{ width: 18, height: 18, margin: 0 }}
+            />
+            {t('Pre-Order') || 'Pre-Order'}
+          </label>
         </div>
-        <datalist id="goods-category-filter-options">
-          {categories.map((category) => (
-            <option key={`filter-${category.id}`} value={category.name}>
-              {getCategoryNameLabel(category.name, t)}
-            </option>
-          ))}
-        </datalist>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, marginLeft: 'auto' }}>
-          <input
-            type="checkbox"
-            checked={preOrderOnly}
-            onChange={(e) => {
-              const nextValue = e.target.checked;
-              setPreOrderOnly(nextValue);
-              load(categoryFilter, nextValue);
-            }}
-            style={{ width: 18, height: 18, margin: 0 }}
-          />
-          {t('Pre-Order') || 'Pre-Order'}
-        </label>
-      </div>
+      ) : null}
 
       {(showAddForm || editingId) ? (
         <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>
+            {editingId ? (t('Update Goods') || 'Update Goods') : (t('Adding New Goods ...') || 'Adding New Goods ...')}
+          </div>
           <form onSubmit={submit}>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
@@ -249,7 +254,7 @@ export default function Goods() {
               <ClearableInput type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 140 }}>
-              {t('Weight(gram)') || 'Weight(gram)'}
+              {t('Weight(gram)/Volume(ml)') || 'Weight(gram)/Volume(ml)'}
               <ClearableInput type="number" value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>

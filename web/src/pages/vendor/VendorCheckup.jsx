@@ -33,6 +33,10 @@ function CheckupTab() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
+  const [checkupOrders, setCheckupOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState('');
+  const [searchMobile, setSearchMobile] = useState('');
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -77,6 +81,34 @@ function CheckupTab() {
 
   useEffect(() => { if (mode !== 'scan') stopCamera(); }, [mode, stopCamera]);
   useEffect(() => () => stopCamera(), [stopCamera]);
+
+  const loadCheckupOrders = useCallback(async (mobile) => {
+    setOrdersError('');
+    setOrdersLoading(true);
+    try {
+      const query = mobile ? `?mobile=${encodeURIComponent(mobile)}` : '';
+      const d = await api(`/api/vendor/orders${query}`);
+      setCheckupOrders(d.orders || []);
+    } catch (e) {
+      setOrdersError(e?.data?.error || e.message || 'Failed to load checkup orders');
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCheckupOrders();
+  }, [loadCheckupOrders]);
+
+  const selectOrder = async (orderId) => {
+    setError('');
+    try {
+      const d = await api(`/api/vendor/orders/${orderId}`);
+      setOrder(d.order);
+    } catch (e) {
+      setError(e?.data?.error || e.message || 'Failed to load order');
+    }
+  };
 
   const lookupToken = async (token) => {
     setError(''); setOrder(null); setEyesight(EMPTY_EYESIGHT); setDone(false);
@@ -182,6 +214,70 @@ function CheckupTab() {
         </div>
       )}
 
+      {!order && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 8 }}>
+            <strong style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('EyeSight Checkup Orders')}</strong>
+            <button
+              className="btn secondary"
+              style={{ padding: '6px 10px', width: 120, minWidth: 120, whiteSpace: 'nowrap' }}
+              onClick={() => { setSearchMobile(''); loadCheckupOrders(); }}
+              disabled={ordersLoading}
+            >
+              {t('Refresh')}
+            </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 260, maxWidth: '100%' }}>
+              <PhoneInput
+                value={searchMobile}
+                onChange={setSearchMobile}
+                label={t('Search by mobile')}
+                disabled={ordersLoading}
+              />
+            </div>
+            <button
+              className="btn"
+              style={{ padding: '6px 10px', width: 140, minWidth: 140, whiteSpace: 'nowrap', marginTop: 24 }}
+              onClick={() => loadCheckupOrders(searchMobile)}
+              disabled={ordersLoading || !searchMobile || !isValidMobile(searchMobile)}
+            >
+              {t('Search')}
+            </button>
+          </div>
+          {ordersLoading ? (
+            <div className="muted">{t('Loading…')}</div>
+          ) : ordersError ? (
+            <div className="error">{t(ordersError) || ordersError}</div>
+          ) : checkupOrders.length === 0 ? (
+            <div className="muted">{t('No paid eyesight checkup orders are waiting for checkup.')}</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 10 }}>
+              {checkupOrders.map(o => (
+                <div key={o.id} className="card" style={{ padding: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{o.order_code}</div>
+                      <div className="muted" style={{ marginTop: 4 }}>
+                        {((typeof window !== 'undefined' && window.localStorage && (localStorage.getItem('lang') || (navigator && navigator.language))) || 'en').startsWith('zh') ?
+                          (o.meta?.shop_name_zh || o.meta?.shop_name) :
+                          (o.meta?.shop_name || t('Checkup Order'))}
+                      </div>
+                      {(o.user_nickname || o.user_real_name || o.user_mobile) && (
+                        <div className="muted" style={{ marginTop: 4 }}>
+                          {o.user_nickname || o.user_real_name || o.user_mobile}
+                        </div>
+                      )}
+                    </div>
+                    <button className="btn" style={{ width: 180, minWidth: 180 }} onClick={() => selectOrder(o.id)}>{t('Select')}</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {order && (
         <>
           <div className="card">
@@ -189,6 +285,11 @@ function CheckupTab() {
               <div>
                 <strong>{order.order_code}</strong>
                 <div className="muted" style={{ marginTop: 4 }}>{((typeof window !== 'undefined' && window.localStorage && (localStorage.getItem('lang') || (navigator && navigator.language))) || 'en').startsWith('zh') ? (order.meta?.shop_name_zh || order.meta?.shop_name) : (order.meta?.shop_name || t('Checkup Order'))}</div>
+                {(order.user_nickname || order.user_real_name || order.user_mobile) && (
+                  <div className="muted" style={{ marginTop: 4 }}>
+                    {order.user_nickname || order.user_real_name || order.user_mobile}
+                  </div>
+                )}
               </div>
               <button className="btn secondary" style={{ width: 'auto', padding: '6px 12px' }} onClick={reset}>✕ {t('Form.Cancel')}</button>
             </div>
@@ -289,7 +390,7 @@ export default function VendorCheckup() {
 
         {canManageStaff && (
           <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '2px solid var(--border)' }}>
-            {[['checkup', '👁️ Eyesight Checkup'], ['staffs', '👥 Staff Management']].map(([key, labelKey]) => (
+            {[['checkup', '👁️ Eyesight Checkup Orders'], ['staffs', '👥 Staff Management']].map(([key, labelKey]) => (
               <button key={key}
                 onClick={() => setMainTab(key)}
                 style={{

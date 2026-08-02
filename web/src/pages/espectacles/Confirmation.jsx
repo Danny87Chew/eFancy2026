@@ -128,18 +128,22 @@ export default function Confirmation() {
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 8 }}>
           {frame.images && frame.images[0] && <img src={frame.images[0].url} alt="" style={{ width: 96, height: 72, objectFit: 'cover', borderRadius: 8 }} />}
           <div>
-              <div>{(lang && lang.startsWith('zh')) ? (frame.name_zh || frame.name) : frame.name}</div>
-              <div className="muted">
-                {(frame.promotion_price && Number(frame.promotion_price) > 0 && Number(frame.promotion_price) < Number(frame.base_price)) ? (
-                  <div>
-                    <span style={{ textDecoration: 'line-through', marginRight: 8 }}>{fmt(frame.base_price)}</span>
-                    <span style={{ fontWeight: 700 }}>{fmt(frame.promotion_price)}</span>
-                  </div>
-                ) : (
-                  <div>{fmt(frame.base_price)}</div>
-                )}
-              </div>
+            <div style={{ marginBottom: 6, lineHeight: 1.6 }}>
+              {frame.brand ? <div>{t('Frame Brand')}: {frame.brand}</div> : null}
+              <div>{t('Frame Name')}: {(lang && lang.startsWith('zh')) ? (frame.name_zh || frame.name) : frame.name}</div>
+              {frame.code ? <div>{t('Frame Code')}: {frame.code}</div> : null}
             </div>
+            <div className="muted">
+              {(frame.promotion_price && Number(frame.promotion_price) > 0 && Number(frame.promotion_price) < Number(frame.base_price)) ? (
+                <div>
+                  <span style={{ textDecoration: 'line-through', marginRight: 8 }}>{fmt(frame.base_price)}</span>
+                  <span style={{ fontWeight: 700 }}>{fmt(frame.promotion_price)}</span>
+                </div>
+              ) : (
+                <div>{fmt(frame.base_price)}</div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -187,8 +191,11 @@ export default function Confirmation() {
       <div className="card">
         <strong>{t('Lens')}</strong>
         <ul style={{ paddingLeft: 18, marginTop: 6 }}>
+          {brand?.brand ? <li>{t('Len Brand')}: {brand.brand}</li> : null}
+          {brand?.name && brand.name !== brand.brand ? <li>{t('Len Name')}: {brand.name}</li> : null}
+          {brand?.code ? <li>{t('Len Code')}: {brand.code}</li> : null}
+          {!brand?.brand && brand ? <li>{t('Len Brand')}: {brand ? ((lang && lang.startsWith('zh')) ? (brand.name_zh || brand.name) : brand.name) : t('Default')}</li> : null}
           <li>{t('Thickness')}: {lens.thickness}</li>
-          <li>{t('Brand')}: {brand ? ((lang && lang.startsWith('zh')) ? (brand.name_zh || brand.name) : brand.name) : t('Default')}</li>
           <li>{t('Blue-light')}: {lens.blueLight ? t('Yes') : t('No')}</li>
           <li>{t('Photochromic')}: {lens.photochromic ? t('Yes') : t('No')}</li>
           <li>{t('Progressive')}: {lens.progressive ? t('Yes') : t('No')}</li>

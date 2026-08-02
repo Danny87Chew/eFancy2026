@@ -58,16 +58,45 @@ export default function PhoneInput({ value = '', onChange, label, allowAnyLeadin
             <option key={c.code} value={c.code}>{c.label}</option>
           ))}
         </select>
-        <input
-          key={matchedCode.code}
-          style={{ flex: 1, borderColor: local && !isValid ? 'var(--danger)' : undefined }}
-          value={local}
-          onChange={handleLocal}
-          disabled={disabled}
-          placeholder={rule.placeholder}
-          inputMode="tel"
-          maxLength={rule.len}
-        />
+        <div style={{ position: 'relative', flex: 1 }}>
+          <input
+            key={matchedCode.code}
+            style={{ width: '100%', paddingRight: local ? 30 : undefined, borderColor: local && !isValid ? 'var(--danger)' : undefined }}
+            value={local}
+            onChange={handleLocal}
+            disabled={disabled}
+            placeholder={rule.placeholder}
+            inputMode="tel"
+            maxLength={rule.len}
+          />
+          {local && !disabled && (
+            <button
+              type="button"
+              aria-label="Clear"
+              onClick={() => onChange(matchedCode.code)}
+              style={{
+                position: 'absolute',
+                right: 8,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                border: 'none',
+                background: 'transparent',
+                color: 'var(--muted)',
+                cursor: 'pointer',
+                fontSize: 28,
+                lineHeight: 1,
+                padding: 0,
+                minWidth: 28,
+                minHeight: 28,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
       {local && !isValid && (
         <span style={{ color: 'var(--danger)', fontSize: 12 }}>

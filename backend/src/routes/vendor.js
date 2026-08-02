@@ -53,7 +53,10 @@ router.get('/checkup/qr/:token', authRequired, requireVendor, (req, res) => {
     return res.status(403).json({ error: 'forbidden' });
 
   const o = db.prepare(
-    `SELECT * FROM orders WHERE qr_token = ? AND module = 'checkup'`
+    `SELECT o.*, u.nickname AS user_nickname, u.real_name AS user_real_name, u.mobile AS user_mobile
+     FROM orders o
+     LEFT JOIN users u ON u.id = o.user_id
+     WHERE o.qr_token = ? AND o.module = 'checkup'`
   ).get(req.params.token);
   if (!o) return res.status(404).json({ error: 'not_found' });
   if (o.status === 'Cancelled') return res.status(400).json({ error: 'order_cancelled' });
@@ -98,33 +101,56 @@ router.get('/orders', authRequired, requireVendor, (req, res) => {
   const tab = req.query.tab; // 'available' | 'taken' | undefined
   let rows;
 
+  const mobileFilter = (req.query.mobile || '').trim();
   if (role === 'spectacle_checkup_vendor') {
-    rows = db.prepare(
-      `SELECT * FROM orders WHERE module = 'checkup' AND status NOT IN ('Cancelled','SystemDone')
-       ORDER BY id DESC LIMIT 200`
-    ).all();
+    if (mobileFilter) {
+      rows = db.prepare(
+        `SELECT o.*, u.nickname AS user_nickname, u.real_name AS user_real_name, u.mobile AS user_mobile
+         FROM orders o
+         LEFT JOIN users u ON u.id = o.user_id
+         WHERE o.module = 'checkup' AND o.status = 'CheckupPaid' AND u.mobile LIKE ?
+         ORDER BY o.id DESC LIMIT 200`
+      ).all(`%${mobileFilter}%`);
+    } else {
+      rows = db.prepare(
+        `SELECT o.*, u.nickname AS user_nickname, u.real_name AS user_real_name, u.mobile AS user_mobile
+         FROM orders o
+         LEFT JOIN users u ON u.id = o.user_id
+         WHERE o.module = 'checkup' AND o.status = 'CheckupPaid'
+         ORDER BY o.id DESC LIMIT 200`
+      ).all();
+    }
   } else if (role === 'spectacle_producer_vendor') {
     const vendorOwnerId = getVendorOwnerId(req);
     if (tab === 'available') {
       rows = db.prepare(
-        `SELECT * FROM orders WHERE module = 'espectacles' AND status = 'PendingForBid'
-         AND manufacturer_vendor_id IS NULL
-         ORDER BY id DESC LIMIT 200`
+        `SELECT o.*, u.nickname AS user_nickname, u.real_name AS user_real_name, u.mobile AS user_mobile
+         FROM orders o
+         LEFT JOIN users u ON u.id = o.user_id
+         WHERE o.module = 'espectacles' AND o.status = 'PendingForBid'
+         AND o.manufacturer_vendor_id IS NULL
+         ORDER BY o.id DESC LIMIT 200`
       ).all();
     } else if (tab === 'taken') {
       const takenStatuses = ['PendingForManufacture','ManufacturingAccept','UnderManufacturing','ManufactureDone','ShippingBack'];
       rows = db.prepare(
-        `SELECT * FROM orders WHERE module = 'espectacles'
-         AND manufacturer_vendor_id = ?
-         AND status IN (${takenStatuses.map(() => '?').join(',')})
-         ORDER BY id DESC LIMIT 200`
+        `SELECT o.*, u.nickname AS user_nickname, u.real_name AS user_real_name, u.mobile AS user_mobile
+         FROM orders o
+         LEFT JOIN users u ON u.id = o.user_id
+         WHERE o.module = 'espectacles'
+         AND o.manufacturer_vendor_id = ?
+         AND o.status IN (${takenStatuses.map(() => '?').join(',')})
+         ORDER BY o.id DESC LIMIT 200`
       ).all(vendorOwnerId, ...takenStatuses);
     } else {
       const producerStatuses = ['PendingForBid','PendingForManufacture','ManufacturingAccept','UnderManufacturing','ManufactureDone','ShippingBack'];
       rows = db.prepare(
-        `SELECT * FROM orders WHERE module = 'espectacles'
-         AND status IN (${producerStatuses.map(() => '?').join(',')})
-         ORDER BY id DESC LIMIT 200`
+        `SELECT o.*, u.nickname AS user_nickname, u.real_name AS user_real_name, u.mobile AS user_mobile
+         FROM orders o
+         LEFT JOIN users u ON u.id = o.user_id
+         WHERE o.module = 'espectacles'
+         AND o.status IN (${producerStatuses.map(() => '?').join(',')})
+         ORDER BY o.id DESC LIMIT 200`
       ).all(...producerStatuses);
     }
   } else {
@@ -138,7 +164,12 @@ router.get('/orders', authRequired, requireVendor, (req, res) => {
 // GET /api/vendor/orders/:id
 router.get('/orders/:id', authRequired, requireVendor, (req, res) => {
   const role = effectiveVendorRole(req);
-  const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  const o = db.prepare(
+    `SELECT o.*, u.nickname AS user_nickname, u.real_name AS user_real_name, u.mobile AS user_mobile
+     FROM orders o
+     LEFT JOIN users u ON u.id = o.user_id
+     WHERE o.id = ?`
+  ).get(req.params.id);
   if (!o) return res.status(404).json({ error: 'not_found' });
 
   // Access checks per role

@@ -1,7 +1,7 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from './state/AuthContext.jsx';
-import { VENDOR_ROLES } from './roles.js';
+import { VENDOR_ROLES, ROLE_LABELS } from './roles.js';
 import { useTranslation } from 'react-i18next';
 import Login from './pages/Login.jsx';
 import Home from './pages/Home.jsx';
@@ -18,9 +18,13 @@ import OrderDetail from './pages/OrderDetail.jsx';
 import Cart from './pages/Cart.jsx';
 import Me from './pages/Me.jsx';
 import Placeholder from './pages/Placeholder.jsx';
+import EFreshes from './pages/EFreshes.jsx';
 import Admin from './pages/admin/Admin.jsx';
 import VendorCheckup from './pages/vendor/VendorCheckup.jsx';
 import VendorManufacture from './pages/vendor/VendorManufacture.jsx';
+import VendorFrames from './pages/vendor/VendorFrames.jsx';
+import VendorLenses from './pages/vendor/VendorLenses.jsx';
+import Goods from './pages/Goods.jsx';
 import LanguageSelector from './components/LanguageSelector.jsx';
 
 function HomeRoute() {
@@ -30,6 +34,7 @@ function HomeRoute() {
   const vendorRole = (user && VENDOR_ROLES.includes(user.role)) ? user.role : vendorContext?.role;
   if (vendorRole === 'spectacle_checkup_vendor') return <Navigate to="/vendor/checkup" replace />;
   if (vendorRole === 'spectacle_producer_vendor') return <Navigate to="/vendor/manufacture" replace />;
+  if (vendorRole === 'spectacle_lens_vendor' || vendorRole === 'spectacle_frame_vendor') return <Navigate to="/me" replace />;
   return <Home />;
 }
 
@@ -39,6 +44,16 @@ function Protected({ children }) {
   if (loading) return <div className="content">{t('Loading')}</div>;
   if (!user) return <Navigate to="/login" replace />;
   return children;
+}
+
+const CART_STORAGE_KEY = 'efreshes-cart';
+function getCartCount() {
+  try {
+    const items = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]');
+    return items.length;
+  } catch (e) {
+    return 0;
+  }
 }
 
 function TopTabs({ isAdminLike, onLogout }) {
@@ -56,6 +71,20 @@ function TopTabs({ isAdminLike, onLogout }) {
     container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
   };
 
+  const heading = (() => {
+    const pathname = location.pathname;
+    if (pathname === '/admin' || pathname === '/admin/') return t('Administration');
+    if (pathname.startsWith('/admin/frames')) return t('Frames');
+    if (pathname.startsWith('/admin/goods-categories')) return t('Goods Category', { defaultValue: 'Goods Category' });
+    if (pathname.startsWith('/admin/vendors')) return t('Vendors');
+    if (pathname.startsWith('/admin/lens-brands')) return t('Lens brands');
+    if (pathname.startsWith('/admin/orders')) return t('Orders');
+    if (pathname.startsWith('/admin/config')) return t('Config');
+    if (pathname.startsWith('/admin/users')) return t('Users');
+    if (pathname.startsWith('/goods')) return t('Goods');
+    return t('Administration');
+  })();
+
   useEffect(() => {
     // center active tab on navigation
     const container = tabsRef.current;
@@ -65,15 +94,17 @@ function TopTabs({ isAdminLike, onLogout }) {
   }, [location.pathname]);
   if (isAdminLike) {
     return (
-      <div className="topbar-actions">
-        <button className="btn secondary topbar-logout" onClick={onLogout}>{t('Logout')}</button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.2 }}>{heading}</div>
       </div>
     );
   }
 
   return (
     <>
-      <NavLink to="/" end className={({ isActive }) => 'tab tab-home' + (isActive ? ' active' : '')}>{t('Home')}</NavLink>
+      <NavLink to="/" end className={({ isActive }) => 'tab tab-home' + (isActive ? ' active' : '')}>
+        <span className="icon">🏠</span>{t('Home')}
+      </NavLink>
       <nav className="topbar-tabs" ref={tabsRef}>
         <NavLink to="/espectacles" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('eSpectacles')}</NavLink>
         <NavLink to="/egroceries" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('eGroceries')}</NavLink>
@@ -88,6 +119,7 @@ function TopTabs({ isAdminLike, onLogout }) {
 function BottomBar() {
   const { user, vendorContext, logout } = useAuth();
   const { t } = useTranslation();
+  const [cartCount, setCartCount] = useState(getCartCount());
   const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
   const isCheckupVendor = user && (
     user.role === 'spectacle_checkup_vendor' ||
@@ -97,20 +129,45 @@ function BottomBar() {
     user.role === 'spectacle_producer_vendor' ||
     vendorContext?.role === 'spectacle_producer_vendor'
   );
-  const isOtherVendor = user && (
-    (VENDOR_ROLES.includes(user.role) && !isCheckupVendor && !isProducerVendor) ||
-    (vendorContext?.role && VENDOR_ROLES.includes(vendorContext.role) && !isCheckupVendor && !isProducerVendor)
+  const isLensVendor = user && (
+    user.role === 'spectacle_lens_vendor' ||
+    vendorContext?.role === 'spectacle_lens_vendor'
   );
-  const isVendorLike = isCheckupVendor || isProducerVendor || isOtherVendor;
+  const isFrameVendor = user && (
+    user.role === 'spectacle_frame_vendor' ||
+    vendorContext?.role === 'spectacle_frame_vendor'
+  );
+  const isOtherVendor = user && (
+    (VENDOR_ROLES.includes(user.role) && !isCheckupVendor && !isProducerVendor && !isLensVendor && !isFrameVendor) ||
+    (vendorContext?.role && VENDOR_ROLES.includes(vendorContext.role) && !isCheckupVendor && !isProducerVendor && !isLensVendor && !isFrameVendor)
+  );
+  const isVendorLike = isCheckupVendor || isProducerVendor || isLensVendor || isFrameVendor || isOtherVendor;
   const isAdminLike = isAdmin || isVendorLike;
+  const showCartTab = !isVendorLike && !isAdmin;
+
+  useEffect(() => {
+    const updateCart = () => setCartCount(getCartCount());
+    window.addEventListener('storage', updateCart);
+    window.addEventListener('efreshes-cart-updated', updateCart);
+    return () => {
+      window.removeEventListener('storage', updateCart);
+      window.removeEventListener('efreshes-cart-updated', updateCart);
+    };
+  }, []);
+
   return (
     <nav className="bottombar">
-      {!isAdminLike && (
+      <NavLink to="/" end className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+        <span className="icon">🏠</span>{t('Home')}
+      </NavLink>
+      {showCartTab && (
         <NavLink to="/cart" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
-          <span className="icon">🛒</span>{t('Cart')}
+          <span className="icon">🛒</span>
+          {t('Cart')}
+          {cartCount > 0 ? <span className="bot-tab-badge">{cartCount}</span> : null}
         </NavLink>
       )}
-      {!isAdminLike && (
+      {!isAdmin && (
         <NavLink to="/orders" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
           <span className="icon">📦</span>{t('Orders')}
         </NavLink>
@@ -118,6 +175,11 @@ function BottomBar() {
       {isAdmin && (
         <NavLink to="/admin" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
           <span className="icon">🛠️</span>{t('Administration')}
+        </NavLink>
+      )}
+      {isAdmin && (
+        <NavLink to="/goods" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+          <span className="icon">🧺</span>{t('Goods')}
         </NavLink>
       )}
       {!isAdmin && isCheckupVendor && (
@@ -128,6 +190,16 @@ function BottomBar() {
       {!isAdmin && !isCheckupVendor && isProducerVendor && (
         <NavLink to="/vendor/manufacture" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
           <span className="icon">🛠️</span>{t('Administration')}
+        </NavLink>
+      )}
+      {!isAdmin && isFrameVendor && (
+        <NavLink to="/vendor/frames" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+          <span className="icon">🕶️</span>{t('Frames')}
+        </NavLink>
+      )}
+      {!isAdmin && isLensVendor && (
+        <NavLink to="/vendor/lenses" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+          <span className="icon">🔍</span>{t('Lens')}
         </NavLink>
       )}
       <NavLink to="/me" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
@@ -151,18 +223,43 @@ export default function App() {
     (vendorContext?.role && VENDOR_ROLES.includes(vendorContext.role))
   ));
   const isAdminLike = isAdmin || isVendorLike;
+  const showCartTab = !isVendorLike && !isAdmin;
+  const vendorDisplayName = user?.merchant_name || user?.vendor_name || user?.nickname || user?.real_name || vendorContext?.merchant_name || vendorContext?.vendor_name || '';
+  const adminDisplayName = user?.nickname || user?.real_name || '';
+  
+  // Get user role for display
+  const userRole = user?.role || vendorContext?.role;
+  const userTypeLabel = userRole ? ROLE_LABELS[userRole] || userRole : '';
+  
+  // Build display text: "User Type - User Name" for vendors/admins, or just name
+  let userDisplayInfo = '';
+  if (isAdmin) {
+    userDisplayInfo = adminDisplayName ? `${userTypeLabel} - ${adminDisplayName}` : userTypeLabel || t('Admin User');
+  } else if (isVendorLike && vendorDisplayName) {
+    userDisplayInfo = userTypeLabel ? `${userTypeLabel} - ${vendorDisplayName}` : vendorDisplayName;
+  }
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="topbar-inner">
           {!isLogin ? (
-            <TopTabs isAdminLike={isAdminLike} onLogout={logout} />
+            isAdminLike ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>{userDisplayInfo}</div>
+              </div>
+            ) : (
+              <TopTabs isAdminLike={isAdminLike} onLogout={logout} />
+            )
           ) : (
             <></>
           )}
           <div className="topbar-right">
-            {!isLogin && <LanguageSelector />}
+            {!isLogin && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                <LanguageSelector />
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -180,16 +277,19 @@ export default function App() {
           <Route path="/espectacles/manual-eyesight" element={<Protected><ManualEyesight /></Protected>} />
           <Route path="/espectacles/manual-eyesight/:id" element={<Protected><ManualEyesight /></Protected>} />
           <Route path="/egroceries" element={<Protected><Placeholder title={t('eGroceries')} /></Protected>} />
-          <Route path="/efreshes" element={<Protected><Placeholder title={t('eFreshes')} /></Protected>} />
+          <Route path="/efreshes" element={<Protected><EFreshes /></Protected>} />
           <Route path="/flea-market" element={<Protected><Placeholder title={t('e-Flea Market')} /></Protected>} />
           <Route path="/eservices" element={<Protected><Placeholder title={t('eServices')} /></Protected>} />
           <Route path="/orders" element={<Protected><Orders /></Protected>} />
           <Route path="/orders/:id" element={<Protected><OrderDetail /></Protected>} />
-          <Route path="/cart" element={<Protected><Cart /></Protected>} />
+          <Route path="/cart" element={<Protected>{isVendorLike ? <Navigate to="/me" replace /> : <Cart />}</Protected>} />
           <Route path="/me" element={<Protected><Me /></Protected>} />
+          <Route path="/goods" element={<Protected><Goods /></Protected>} />
           <Route path="/admin/*" element={<Protected><Admin /></Protected>} />
           <Route path="/vendor/checkup" element={<Protected><VendorCheckup /></Protected>} />
           <Route path="/vendor/manufacture" element={<Protected><VendorManufacture /></Protected>} />
+          <Route path="/vendor/frames" element={<Protected><VendorFrames /></Protected>} />
+          <Route path="/vendor/lenses" element={<Protected><VendorLenses /></Protected>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

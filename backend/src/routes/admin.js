@@ -5,6 +5,40 @@ const { authRequired, requireAdmin, requireRole } = require('../auth');
 const { ALL_ROLES, VENDOR_ROLES } = require('../roles');
 const { getConfig, setConfig, allConfig } = require('../configStore');
 const { canTransition } = require('../orderStates');
+const config = require('../config');
+const http = require('http');
+const https = require('https');
+const { URL } = require('url');
+
+function httpPostJson(urlStr, body, headers = {}, timeout = 10000) {
+  return new Promise((resolve, reject) => {
+    try {
+      const url = new URL(urlStr);
+      const data = JSON.stringify(body || {});
+      const opts = {
+        method: 'POST',
+        hostname: url.hostname,
+        port: url.port || (url.protocol === 'https:' ? 443 : 80),
+        path: url.pathname + (url.search || ''),
+        headers: Object.assign({ 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }, headers),
+        timeout,
+      };
+      const lib = url.protocol === 'https:' ? https : http;
+      const req = lib.request(opts, (res) => {
+        let out = '';
+        res.setEncoding('utf8');
+        res.on('data', d => out += d);
+        res.on('end', () => {
+          try { const json = out ? JSON.parse(out) : null; resolve({ statusCode: res.statusCode, body: json }); }
+          catch (e) { resolve({ statusCode: res.statusCode, body: out }); }
+        });
+      });
+      req.on('error', reject);
+      req.write(data);
+      req.end();
+    } catch (e) { reject(e); }
+  });
+}
 
 function isValidMobile(m) {
   if (typeof m !== 'string') return false;
@@ -472,7 +506,11 @@ router.get('/orders', authRequired, requireAdmin, (req, res) => {
 const TERMINAL_STATES = ['Cancelled', 'SystemDone'];
 const ADMIN_FORCE_TARGETS = ['Cancelled', 'SystemDone'];
 
-router.patch('/orders/:id/status', authRequired, requireAdmin, (req, res) => {
+router.patch('/orders/:id/status', authRequired, (req, res) => {
+  // allow admin, super_admin, or platform staff to change statuses via this endpoint
+  if (!req.user || !['admin', 'super_admin', 'platform_staff'].includes(req.user.role))
+    return res.status(403).json({ error: 'forbidden' });
+
   const { status, vendor_price } = req.body || {};
   if (!status) return res.status(400).json({ error: 'status_required' });
   const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
@@ -507,6 +545,53 @@ router.patch('/orders/:id/status', authRequired, requireAdmin, (req, res) => {
   res.json({ order: updated });
 });
 
+// POST /api/admin/orders/:id/release-for-delivery
+// Notify shipping partner and set order to PendingForDelivery
+router.post('/orders/:id/release-for-delivery', authRequired, (req, res) => {
+  if (!req.user || !['admin', 'super_admin', 'platform_staff'].includes(req.user.role))
+    return res.status(403).json({ error: 'forbidden' });
+
+  const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!o) return res.status(404).json({ error: 'not_found' });
+
+  // Only allow from ReadyForDelivery
+  if (o.status !== 'ReadyForDelivery') return res.status(400).json({ error: 'invalid_status' });
+
+  if (!config.shippingPartner.url) return res.status(500).json({ error: 'shipping_partner_not_configured' });
+
+  const payload = {
+    order_id: o.id,
+    order_code: o.order_code,
+    recipient: o.meta_json ? (JSON.parse(o.meta_json).delivery_address || null) : null,
+    meta: o.meta_json ? JSON.parse(o.meta_json) : null,
+  };
+
+  const headers = {};
+  if (config.shippingPartner.apiKey) headers['X-API-KEY'] = config.shippingPartner.apiKey;
+
+  httpPostJson(config.shippingPartner.url, payload, headers).then(result => {
+    if (!result || !result.statusCode || result.statusCode >= 400) {
+      return res.status(502).json({ error: 'shipping_partner_error', detail: result && result.body });
+    }
+
+    // store partner response in meta
+    const meta = o.meta_json ? JSON.parse(o.meta_json) : {};
+    meta.shipping_partner = { released_at: new Date().toISOString(), response: result.body };
+    db.prepare('UPDATE orders SET meta_json = ?, status = ?, updated_at = datetime(\'now\') WHERE id = ?')
+      .run(JSON.stringify(meta), 'PendingForDelivery', o.id);
+    db.prepare(
+      `INSERT INTO admin_audit_logs (actor_user_id, action, target, detail_json) VALUES (?, 'order.release_for_delivery', ?, ?)`
+    ).run(req.user.id, String(o.id), JSON.stringify({ partner_response: result.body }));
+
+    const updated = db.prepare('SELECT * FROM orders WHERE id = ?').get(o.id);
+    updated.meta = updated.meta_json ? JSON.parse(updated.meta_json) : null;
+    res.json({ ok: true, order: updated });
+  }).catch(err => {
+    console.error('Partner request failed', err);
+    res.status(502).json({ error: 'shipping_partner_unreachable' });
+  });
+});
+
 // PATCH /api/admin/orders/:id/vendor-price  { vendor_price } (admin+)
 router.patch('/orders/:id/vendor-price', authRequired, requireAdmin, (req, res) => {
   const { vendor_price } = req.body || {};
@@ -522,6 +607,216 @@ router.patch('/orders/:id/vendor-price', authRequired, requireAdmin, (req, res) 
     `INSERT INTO admin_audit_logs (actor_user_id, action, target, detail_json) VALUES (?, 'order.vendor_price.update', ?, ?)`
   ).run(req.user.id, String(o.id), JSON.stringify({ vendor_price: meta.vendor_price }));
   res.json({ ok: true });
+});
+
+const enrichGoodsWithImages = (rows) => rows.map((row) => ({
+  ...row,
+  images: db.prepare('SELECT url FROM goods_images WHERE good_id = ? ORDER BY sort_order, id').all(row.id).map((img) => img.url)
+}));
+
+// GET /api/admin/goods-categories (admin+)
+router.get('/goods-categories', authRequired, requireAdmin, (req, res) => {
+  const categories = db.prepare('SELECT id, name, created_at FROM goods_categories ORDER BY name ASC').all();
+  res.json({ categories });
+});
+
+// POST /api/admin/goods-categories { name } (admin+)
+router.post('/goods-categories', authRequired, requireAdmin, (req, res) => {
+  const { name } = req.body || {};
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return res.status(400).json({ error: 'name_required' });
+  try {
+    const info = db.prepare('INSERT INTO goods_categories (name) VALUES (?)').run(trimmed);
+    const created = db.prepare('SELECT id, name, created_at FROM goods_categories WHERE id = ?').get(info.lastInsertRowid);
+    res.status(201).json({ category: created });
+  } catch (err) {
+    if (err && (err.code === 'SQLITE_CONSTRAINT' || String(err.message || '').toLowerCase().includes('unique'))) {
+      return res.status(409).json({ error: 'category_exists' });
+    }
+    console.error('Failed creating goods category', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// PATCH /api/admin/goods-categories/:id { name }
+router.patch('/goods-categories/:id', authRequired, requireAdmin, (req, res) => {
+  const { name } = req.body || {};
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return res.status(400).json({ error: 'name_required' });
+  const existing = db.prepare('SELECT id FROM goods_categories WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'not_found' });
+  try {
+    db.prepare('UPDATE goods_categories SET name = ? WHERE id = ?').run(trimmed, req.params.id);
+    const updated = db.prepare('SELECT id, name, created_at FROM goods_categories WHERE id = ?').get(req.params.id);
+    res.json({ category: updated });
+  } catch (err) {
+    if (err && (err.code === 'SQLITE_CONSTRAINT' || String(err.message || '').toLowerCase().includes('unique'))) {
+      return res.status(409).json({ error: 'category_exists' });
+    }
+    console.error('Failed updating goods category', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// DELETE /api/admin/goods-categories/:id
+router.delete('/goods-categories/:id', authRequired, requireAdmin, (req, res) => {
+  const existing = db.prepare('SELECT id FROM goods_categories WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'not_found' });
+  db.prepare('DELETE FROM goods_categories WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// GET /api/admin/goods?category=...  (admin+)
+router.get('/goods', authRequired, requireAdmin, (req, res) => {
+  const { category } = req.query || {};
+  let rows;
+  if (category) rows = db.prepare('SELECT * FROM goods WHERE category = ? ORDER BY id DESC').all(category);
+  else rows = db.prepare('SELECT * FROM goods ORDER BY id DESC').all();
+  res.json({ goods: enrichGoodsWithImages(rows) });
+});
+
+// PATCH /api/admin/goods/:id  { name?, code?, category?, kind?, price?, source_price?, market_price?, promotion_price?, stock?, weight?, available_from?, cutting?, active?, images? }
+router.patch('/goods/:id', authRequired, requireAdmin, (req, res) => {
+  const existing = db.prepare('SELECT * FROM goods WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'not_found' });
+
+  const { name, code, category, kind, price, source_price, market_price, promotion_price, stock, weight, available_from, cutting, active, images } = req.body || {};
+  const updates = [];
+  const values = [];
+
+  if (name !== undefined) {
+    const trimmedName = String(name).trim();
+    if (!trimmedName) return res.status(400).json({ error: 'name_required' });
+    updates.push('name = ?'); values.push(trimmedName);
+  }
+  if (code !== undefined) {
+    updates.push('code = ?'); values.push(code == null || String(code).trim() === '' ? null : String(code).trim());
+  }
+  if (category !== undefined) {
+    updates.push('category = ?'); values.push(category == null || String(category).trim() === '' ? null : String(category).trim());
+  }
+  if (kind !== undefined) {
+    updates.push('kind = ?'); values.push(kind === 'fresh_preorder' ? 'fresh_preorder' : 'normal');
+  }
+
+  let effectiveSourcePrice;
+  if (source_price !== undefined) effectiveSourcePrice = Number(source_price);
+  else if (price !== undefined) effectiveSourcePrice = Number(price);
+  if (effectiveSourcePrice !== undefined) {
+    updates.push('price = ?'); values.push(effectiveSourcePrice);
+    updates.push('source_price = ?'); values.push(effectiveSourcePrice);
+  }
+  if (market_price !== undefined) {
+    updates.push('market_price = ?'); values.push(Number(market_price));
+  }
+  if (promotion_price !== undefined) {
+    updates.push('promotion_price = ?'); values.push(Number(promotion_price));
+  }
+  if (stock !== undefined) {
+    updates.push('stock = ?'); values.push(Number(stock) || 0);
+  }
+  if (weight !== undefined) {
+    updates.push('weight = ?'); values.push(Number(weight) || 0);
+  }
+  if (available_from !== undefined) {
+    updates.push('available_from = ?'); values.push(available_from == null || String(available_from).trim() === '' ? null : String(available_from).trim());
+  }
+  if (cutting !== undefined) {
+    updates.push('cutting = ?'); values.push(cutting == null || String(cutting).trim() === '' ? null : String(cutting).trim());
+  }
+  if (active !== undefined) {
+    updates.push('active = ?'); values.push(active ? 1 : 0);
+  }
+
+  if (updates.length === 0 && images === undefined) return res.status(400).json({ error: 'no_changes' });
+
+  try {
+    const tx = db.transaction(() => {
+      if (updates.length > 0) {
+        db.prepare(`UPDATE goods SET ${updates.join(', ')} WHERE id = ?`).run(...values, req.params.id);
+      }
+      if (images !== undefined) {
+        db.prepare('DELETE FROM goods_images WHERE good_id = ?').run(req.params.id);
+        if (Array.isArray(images)) {
+          const stmt = db.prepare('INSERT INTO goods_images (good_id, url, sort_order) VALUES (?, ?, ?)');
+          images.forEach((url, idx) => {
+            const trimmed = String(url || '').trim();
+            if (trimmed) stmt.run(req.params.id, trimmed, idx);
+          });
+        }
+      }
+    });
+    tx();
+
+    const updated = db.prepare('SELECT * FROM goods WHERE id = ?').get(req.params.id);
+    const updatedWithImages = enrichGoodsWithImages([updated])[0];
+    db.prepare(`INSERT INTO admin_audit_logs (actor_user_id, action, target, detail_json) VALUES (?, 'goods.update', ?, ?)`)
+      .run(req.user.id, String(updated.id), JSON.stringify(updatedWithImages));
+    res.json({ good: updatedWithImages });
+  } catch (err) {
+    if (err && (err.code === 'SQLITE_CONSTRAINT' || String(err.message || '').toLowerCase().includes('unique'))) {
+      const msg = String(err.message || '').toLowerCase();
+      if (msg.includes('code') || msg.includes('idx_goods_code_unique')) return res.status(409).json({ error: 'code_taken' });
+      return res.status(409).json({ error: 'already_exists' });
+    }
+    console.error('Failed updating good', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// DELETE /api/admin/goods/:id
+router.delete('/goods/:id', authRequired, requireAdmin, (req, res) => {
+  const existing = db.prepare('SELECT id FROM goods WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'not_found' });
+  db.prepare('DELETE FROM goods WHERE id = ?').run(req.params.id);
+  db.prepare(`INSERT INTO admin_audit_logs (actor_user_id, action, target, detail_json) VALUES (?, 'goods.delete', ?, ?)`)
+    .run(req.user.id, String(req.params.id), JSON.stringify({ deleted: true }));
+  res.json({ ok: true });
+});
+
+// POST /api/admin/goods  { name, code?, category?, kind?, price?, source_price?, market_price?, promotion_price?, stock?, weight?, available_from?, cutting?, active?, images? }
+router.post('/goods', authRequired, requireAdmin, (req, res) => {
+  const { name, code, category, kind, price, source_price, market_price, promotion_price, stock, weight, available_from, cutting, active, images } = req.body || {};
+  if (!name || !String(name).trim()) return res.status(400).json({ error: 'name_required' });
+  const effectiveKind = kind === 'fresh_preorder' ? 'fresh_preorder' : 'normal';
+  const effectiveCutting = cutting == null || String(cutting).trim() === '' ? null : String(cutting).trim();
+  const effectiveSourcePrice = source_price != null ? Number(source_price) : (price != null ? Number(price) : 0);
+  const effectiveMarketPrice = market_price != null ? Number(market_price) : 0;
+  const effectivePromotionPrice = promotion_price != null ? Number(promotion_price) : 0;
+  const effectiveWeight = weight != null ? Number(weight) : 0;
+  try {
+    const info = db.prepare(
+      `INSERT INTO goods (name, code, category, kind, cutting, vendor_user_id, price, source_price, market_price, promotion_price, stock, weight, available_from, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      String(name).trim(), code ? String(code).trim() : null, category ? String(category).trim() : null,
+      effectiveKind, effectiveCutting, null, effectiveSourcePrice, effectiveSourcePrice, effectiveMarketPrice, effectivePromotionPrice,
+      Number(stock) || 0, Number(effectiveWeight) || 0, available_from ? String(available_from) : null,
+      active != null ? (active ? 1 : 0) : 1
+    );
+
+    if (Array.isArray(images)) {
+      const stmt = db.prepare('INSERT INTO goods_images (good_id, url, sort_order) VALUES (?, ?, ?)');
+      images.forEach((url, idx) => {
+        const trimmed = String(url || '').trim();
+        if (trimmed) stmt.run(info.lastInsertRowid, trimmed, idx);
+      });
+    }
+
+    const created = db.prepare('SELECT * FROM goods WHERE id = ?').get(info.lastInsertRowid);
+    const createdWithImages = enrichGoodsWithImages([created])[0];
+    db.prepare(`INSERT INTO admin_audit_logs (actor_user_id, action, target, detail_json) VALUES (?, 'goods.create', ?, ?)`)
+      .run(req.user.id, String(created.id), JSON.stringify(createdWithImages));
+    res.status(201).json({ good: createdWithImages });
+  } catch (err) {
+    if (err && (err.code === 'SQLITE_CONSTRAINT' || String(err.message || '').toLowerCase().includes('unique'))) {
+      const msg = String(err.message || '').toLowerCase();
+      if (msg.includes('code') || msg.includes('idx_goods_code_unique')) return res.status(409).json({ error: 'code_taken' });
+      return res.status(409).json({ error: 'already_exists' });
+    }
+    console.error('Failed creating good', err);
+    res.status(500).json({ error: 'server_error' });
+  }
 });
 
 module.exports = router;

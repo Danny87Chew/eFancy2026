@@ -16,6 +16,7 @@ app.use('/api/frames', require('./routes/frames'));
 app.use('/api/lens-brands', require('./routes/lensBrands'));
 app.use('/api/shops', require('./routes/shops'));
 app.use('/api/orders', require('./routes/orders'));
+app.use('/api/goods', require('./routes/goods'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/vendor', require('./routes/vendor'));
 app.use('/api/payments', require('./routes/payments'));

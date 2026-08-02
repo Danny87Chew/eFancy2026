@@ -117,6 +117,54 @@ router.post('/checkup', authRequired, (req, res) => {
   res.json({ order: loadOrder(info.lastInsertRowid) });
 });
 
+// POST /api/orders/efreshes  { items, total }
+router.post('/efreshes', authRequired, (req, res) => {
+  const { items, total } = req.body || {};
+  if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'items_required' });
+
+  const validatedItems = items.map((item) => {
+    const quantity = Number(item.quantity || 0);
+    const unit_price = Number(item.price || 0);
+    if (!item.name || quantity < 1 || unit_price < 0) {
+      throw new Error('invalid_item');
+    }
+    return {
+      ...item,
+      quantity,
+      unit_price,
+    };
+  });
+
+  const code = 'O' + nanoid(10).toUpperCase();
+  const finalTotal = Number(total != null ? total : validatedItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0));
+  const meta = { kind: 'efreshes', item_count: validatedItems.length };
+  const info = db
+    .prepare(
+      `INSERT INTO orders (order_code, user_id, module, status, total, meta_json)
+       VALUES (?, ?, 'efreshes', 'PendingForPayment', ?, ?)`
+    )
+    .run(code, req.user.id, finalTotal, JSON.stringify(meta));
+
+  const orderId = info.lastInsertRowid;
+  const insertItem = db.prepare(
+    `INSERT INTO order_items (order_id, kind, ref_id, label, qty, unit_price, meta_json)
+     VALUES (?, 'fresh', ?, ?, ?, ?, ?)`
+  );
+
+  for (const item of validatedItems) {
+    insertItem.run(
+      orderId,
+      item.goodId || null,
+      item.name,
+      item.quantity,
+      item.unit_price,
+      JSON.stringify({ category: item.category, cutting: item.cutting, weight: item.weight })
+    );
+  }
+
+  res.json({ order: loadOrder(orderId) });
+});
+
 // PATCH /api/orders/:id/checkup/shop  { shop_id }
 // Change the partner shop for a pending/paid (not finalised) checkup order.
 router.patch('/:id/checkup/shop', authRequired, (req, res) => {
@@ -223,7 +271,32 @@ router.post('/spectacles', authRequired, (req, res) => {
 
   const meta = { frame_id, frame_name: frame.name, eyesight, lens, pricing: { frame_base_price: frameUnitBase, frame_promo_price: frameUnitPromo, chosen_frame_unit: chosenFrameUnit, base_total: base_total != null ? Number(base_total) : undefined, promo_total: promo_total != null ? Number(promo_total) : undefined } };
   if (frame.name_zh) meta.frame_name_zh = frame.name_zh;
+  if (frame.brand) meta.frame_brand = frame.brand;
+  if (frame.code) meta.frame_code = frame.code;
   if (checkup_order_id) meta.checkup_order_id = checkup_order_id;
+  if (lens.brand_id) {
+    const b = db.prepare('SELECT * FROM lens_brands WHERE id = ?').get(lens.brand_id);
+    if (b) {
+      if (b.name_zh) {
+        lens.brand_name_zh = b.name_zh;
+        meta.brand_name_zh = b.name_zh;
+      }
+      if (b.brand) {
+        lens.brand = b.brand;
+        meta.lens.brand = b.brand;
+      }
+      if (b.name) {
+        lens.name = b.name;
+        meta.lens.name = b.name;
+      }
+      if (b.code) {
+        lens.code = b.code;
+        lens.brand_code = b.code;
+        meta.lens.code = b.code;
+        meta.brand_code = b.code;
+      }
+    }
+  }
   const info = db
     .prepare(
       `INSERT INTO orders (order_code, user_id, module, status, total, meta_json, delivery_address_id)
@@ -277,10 +350,26 @@ router.patch('/:id/spectacles', authRequired, (req, res) => {
     if (!frame) return res.status(400).json({ error: 'invalid_frame' });
     meta.frame_id = frame.id;
     meta.frame_name = frame.name;
+    if (frame.brand) meta.frame_brand = frame.brand;
     if (frame.name_zh) meta.frame_name_zh = frame.name_zh;
+    if (frame.code) meta.frame_code = frame.code;
   }
   if (eyesight) meta.eyesight = eyesight;
-  if (lens) meta.lens = lens;
+  if (lens) {
+    if (lens.brand_id) {
+      const brand = db.prepare('SELECT * FROM lens_brands WHERE id = ?').get(lens.brand_id);
+      if (brand) {
+        if (brand.brand) lens.brand = brand.brand;
+        if (brand.name) lens.name = brand.name;
+        if (brand.code) {
+          lens.code = brand.code;
+          lens.brand_code = brand.code;
+        }
+        if (brand.name_zh) lens.brand_name_zh = brand.name_zh;
+      }
+    }
+    meta.lens = lens;
+  }
 
   let newDeliveryAddressId = o.delivery_address_id;
   if (req.body && Object.prototype.hasOwnProperty.call(req.body, 'delivery_address_id')) {
@@ -297,10 +386,26 @@ router.patch('/:id/spectacles', authRequired, (req, res) => {
     if (!frame) return res.status(400).json({ error: 'invalid_frame' });
     meta.frame_id = frame.id;
     meta.frame_name = frame.name;
+    if (frame.brand) meta.frame_brand = frame.brand;
     if (frame.name_zh) meta.frame_name_zh = frame.name_zh;
+    if (frame.code) meta.frame_code = frame.code;
   }
   if (eyesight) meta.eyesight = eyesight;
-  if (lens) meta.lens = lens;
+  if (lens) {
+    if (lens.brand_id) {
+      const brand = db.prepare('SELECT * FROM lens_brands WHERE id = ?').get(lens.brand_id);
+      if (brand) {
+        if (brand.brand) lens.brand = brand.brand;
+        if (brand.name) lens.name = brand.name;
+        if (brand.code) {
+          lens.code = brand.code;
+          lens.brand_code = brand.code;
+        }
+        if (brand.name_zh) lens.brand_name_zh = brand.name_zh;
+      }
+    }
+    meta.lens = lens;
+  }
 
   // Support promo_total/base_total being sent from client
   const promo_total = req.body && req.body.promo_total != null ? Number(req.body.promo_total) : null;

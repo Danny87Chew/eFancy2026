@@ -1,7 +1,7 @@
 const { nanoid } = require('nanoid');
 const db = require('../db');
 const { signToken } = require('../auth');
-const { PUBLIC_ROLES } = require('../roles');
+const { PUBLIC_ROLES, VENDOR_ROLES } = require('../roles');
 
 const router = require('express').Router();
 
@@ -41,15 +41,38 @@ function resolveDefaultCurrency(user) {
   return 'SGD';
 }
 
+function resolveVendorProfile(user) {
+  if (!user) return null;
+
+  const profile = db.prepare(
+    `SELECT merchant_name, office_number, mobile_number, address, contact_number
+     FROM vendor_profiles
+     WHERE user_id = ?`
+  ).get(user.id) || db.prepare(
+    `SELECT vp.merchant_name, vp.office_number, vp.mobile_number, vp.address, vp.contact_number
+     FROM vendor_profiles vp
+     JOIN vendor_staff vs ON vs.vendor_user_id = vp.user_id
+     WHERE vs.staff_mobile = ? LIMIT 1`
+  ).get(user.mobile);
+
+  if (!profile) return null;
+  return {
+    vendor_name: profile.merchant_name || null,
+    vendor_office: profile.office_number || profile.contact_number || null,
+    vendor_mobile: profile.mobile_number || user.mobile || null,
+    vendor_address: profile.address || null,
+  };
+}
+
 function enrichUser(user) {
   if (!user) return user;
-  return { ...user, default_currency: resolveDefaultCurrency(user) };
+  return { ...user, default_currency: resolveDefaultCurrency(user), ...resolveVendorProfile(user) };
 }
 
 function resolveVendorContext(user) {
   // Check if this user is a staff member of some vendor
   const staffRow = db.prepare(
-    `SELECT vs.*, u.role AS vendor_role, vp.merchant_name
+    `SELECT vs.*, u.role AS vendor_role, vp.merchant_name, vp.office_number, vp.mobile_number, vp.address, vp.contact_number
      FROM vendor_staff vs
      JOIN users u ON u.id = vs.vendor_user_id
      LEFT JOIN vendor_profiles vp ON vp.user_id = vs.vendor_user_id
@@ -60,6 +83,9 @@ function resolveVendorContext(user) {
     vendor_user_id: staffRow.vendor_user_id,
     vendor_role: staffRow.vendor_role,
     merchant_name: staffRow.merchant_name,
+    vendor_office: staffRow.office_number || staffRow.contact_number || null,
+    vendor_mobile: staffRow.mobile_number || null,
+    vendor_address: staffRow.address || null,
     is_staff_admin: staffRow.is_admin === 1,
   };
 }
@@ -244,7 +270,8 @@ function normalizeBooleanFlag(value) {
 
 // GET /api/auth/me
 router.get('/me', authRequired, (req, res) => {
-  res.json({ user: enrichUser(req.user) });
+  const vendorContext = resolveVendorContext(req.user);
+  res.json({ user: enrichUser(req.user), vendor_context: vendorContext || undefined });
 });
 
 // PATCH /api/auth/me { nickname, real_name, mobile, preorder_notification_opt_in }

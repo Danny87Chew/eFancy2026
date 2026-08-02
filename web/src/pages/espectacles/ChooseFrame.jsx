@@ -186,7 +186,7 @@ export default function ChooseFrame() {
           <div
             key={f.id}
             className={'frame-card' + (selected && selected.id === f.id ? ' selected' : '')}
-            onClick={() => { setSelected(f); setPopup(f); }}
+            onClick={() => { setSelected(f); setPopup(f); setDraft({ frame: f }); }}
           >
             {f.images && f.images[0] && (
               <img src={f.images[0].url} alt={f.name} />

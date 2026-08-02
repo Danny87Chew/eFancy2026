@@ -5,6 +5,7 @@ import { ALL_ROLES, ROLE_LABELS } from '../../roles';
 import { useAuth } from '../../state/AuthContext.jsx';
 import { useTranslation } from 'react-i18next';
 import PhoneInput, { COUNTRY_CODES as PHONE_COUNTRY_CODES } from '../../components/PhoneInput.jsx';
+import ClearableInput from '../../components/ClearableInput';
 
 function splitMobile(mobile = '') {
   for (const { code } of PHONE_COUNTRY_CODES) {
@@ -171,7 +172,7 @@ export default function AdminUsers() {
       <div style={{ marginBottom: 12, display: 'flex', gap: 12, alignItems: 'flex-end' }}>
         <label className="field" style={{ marginBottom: 0, flex: 1 }}>
           {t('Search users')}
-          <input
+          <ClearableInput
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={t('Search by name, code or mobile')}
@@ -193,7 +194,7 @@ export default function AdminUsers() {
               <div style={{ marginBottom: 8 }}>
                 <label className="field" style={{ marginBottom: 10 }}>
                   {t('Name')}
-                  <input
+                  <ClearableInput
                     value={editRealName}
                     onChange={e => setEditRealName(e.target.value)}
                     placeholder={t('Real name')}
@@ -201,7 +202,7 @@ export default function AdminUsers() {
                 </label>
                 <label className="field" style={{ marginBottom: 10 }}>
                   {t('Nickname')}
-                  <input
+                  <ClearableInput
                     value={editNickname}
                     onChange={e => setEditNickname(e.target.value)}
                     placeholder={t('Nickname')}

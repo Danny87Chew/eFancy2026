@@ -63,7 +63,12 @@ export default function Orders() {
             onClick={e => handleOrderClick(e, o)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <strong>{o.order_code}</strong>
-              <span className={`status-badge status-${o.status}`}>{statusLabel(o)}</span>
+              <span
+                className={`status-badge status-${o.status}`}
+                style={{ fontSize: '1.26rem', fontWeight: 800, lineHeight: 1, padding: '6px 12px' }}
+              >
+                {statusLabel(o)}
+              </span>
             </div>
             <div className="muted">{moduleLabel(o.module)} · {fmt(o.total)}</div>
             <div className="muted">{o.created_at}</div>

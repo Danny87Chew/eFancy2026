@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api';
+import ClearableInput from '../../components/ClearableInput';
 import { useTranslation } from 'react-i18next';
 
 const EMPTY = { name: '', address: '', postcode: '', road: '', town: '', district: '', mrt: '', opening_time: '', contact: '', building_name: '', floor_number: '', unit_number: '' };
@@ -107,7 +108,7 @@ export default function AdminShops() {
   const renderField = (key, label = key) => (
     <label key={key} className="field">
       {label}
-      <input value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} />
+      <ClearableInput value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} />
     </label>
   );
 
@@ -158,17 +159,17 @@ export default function AdminShops() {
           <label className="field" style={{ flex: 1, minWidth: 0 }}>
             {t('Building Name:')}
             <div style={{ position: 'relative' }}>
-              <input value={form.building_name || ''} onChange={e => setForm({ ...form, building_name: e.target.value })} style={{ paddingLeft: 36, width: '100%' }} />
+              <ClearableInput value={form.building_name || ''} onChange={e => setForm({ ...form, building_name: e.target.value })} style={{ paddingLeft: 36, width: '100%' }} />
               <button type="button" onClick={() => setForm({ ...form, building_name: '' })} style={{ position: 'absolute', left: 8, top: 8, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14 }}>×</button>
             </div>
           </label>
           <label className="field" style={{ width: 60 }}>
             {t('Floor:') || t('Floor') || 'Floor:'}
-            <input value={form.floor_number || ''} onChange={e => setForm({ ...form, floor_number: e.target.value })} style={{ width: '100%' }} />
+            <ClearableInput value={form.floor_number || ''} onChange={e => setForm({ ...form, floor_number: e.target.value })} style={{ width: '100%' }} />
           </label>
           <label className="field" style={{ width: 110 }}>
             {t('Unit:') || t('Unit') || 'Unit:'}
-            <input value={form.unit_number || ''} onChange={e => setForm({ ...form, unit_number: e.target.value })} style={{ width: '100%' }} />
+            <ClearableInput value={form.unit_number || ''} onChange={e => setForm({ ...form, unit_number: e.target.value })} style={{ width: '100%' }} />
           </label>
         </div>
         {renderField('road', t('Road Name'))}
@@ -176,7 +177,7 @@ export default function AdminShops() {
           <label className="field" style={{ position: 'relative' }}>
             Postcode
             <div style={{ display: 'flex', gap: 8 }}>
-              <input value={form.postcode || ''} onChange={e => setForm({ ...form, postcode: e.target.value })} />
+              <ClearableInput value={form.postcode || ''} onChange={e => setForm({ ...form, postcode: e.target.value })} />
               <button
                 type="button"
                 className="btn secondary"
@@ -195,7 +196,7 @@ export default function AdminShops() {
           {renderField('district', t('District'))}
           <label className="field">
             MRT Stations
-            <input
+            <ClearableInput
               list="sg-mrt-stations"
               value={form.mrt}
               onChange={e => setForm({ ...form, mrt: e.target.value })}

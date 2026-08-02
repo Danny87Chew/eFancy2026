@@ -15,7 +15,7 @@ export function statusLabel(order) {
   if (status === 'UnderManufacturing') return i18n.t('Under Manufacturing');
   if (status === 'ManufactureDone') return i18n.t('Manufacture Done');
   if (status === 'ShippingBack') return i18n.t('Shipping Back');
-  return status;
+  return i18n.t(status);
 }
 
 export function moduleLabel(module) {

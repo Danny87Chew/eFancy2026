@@ -102,7 +102,9 @@ function TopTabs({ isAdminLike, onLogout }) {
 
   return (
     <>
-      <NavLink to="/" end className={({ isActive }) => 'tab tab-home' + (isActive ? ' active' : '')}>{t('Home')}</NavLink>
+      <NavLink to="/" end className={({ isActive }) => 'tab tab-home' + (isActive ? ' active' : '')}>
+        <span className="icon">🏠</span>{t('Home')}
+      </NavLink>
       <nav className="topbar-tabs" ref={tabsRef}>
         <NavLink to="/espectacles" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('eSpectacles')}</NavLink>
         <NavLink to="/egroceries" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('eGroceries')}</NavLink>
@@ -155,6 +157,9 @@ function BottomBar() {
 
   return (
     <nav className="bottombar">
+      <NavLink to="/" end className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+        <span className="icon">🏠</span>{t('Home')}
+      </NavLink>
       {showCartTab && (
         <NavLink to="/cart" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
           <span className="icon">🛒</span>

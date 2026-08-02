@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
-import { statusLabel, moduleLabel } from '../utils/status';
+import { statusLabel, moduleLabel, orderTypeLabel } from '../utils/status';
 import { useDraft } from '../state/OrderDraftContext.jsx';
 import { useCurrency } from '../state/CurrencyContext.jsx';
 import { useTranslation } from 'react-i18next';
@@ -72,6 +72,7 @@ export default function Orders() {
             </div>
             <div className="muted">{moduleLabel(o.module)} · {fmt(o.total)}</div>
             <div className="muted">{o.created_at}</div>
+            {orderTypeLabel(o) ? <div style={{ marginTop: 8, fontSize: 15, color: 'var(--primary)', fontWeight: 700 }}>{`(${orderTypeLabel(o)})`}</div> : null}
             {o.module === 'checkup' && o.status === 'PendingForOrder' && (
                 <div style={{ marginTop: 6, fontSize: 13, color: 'var(--primary)', fontWeight: 500 }}>
                 👓 {t('Please choose your favorite frame')} →

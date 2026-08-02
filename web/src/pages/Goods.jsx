@@ -10,8 +10,9 @@ export default function Goods() {
   const [goods, setGoods] = useState([]);
   const [categories, setCategories] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [preOrderOnly, setPreOrderOnly] = useState(false);
   const [loading, setLoading] = useState(false);
-  const hasActiveFilter = Boolean(categoryFilter?.trim());
+  const hasActiveFilter = Boolean(categoryFilter?.trim()) || preOrderOnly;
 
   const emptyForm = { name: '', code: '', category: '', kind: 'normal', cutting: '', source_price: '', market_price: '', promotion_price: '', stock: '', weight: '', available_from: '', active: true };
   const [form, setForm] = useState(emptyForm);
@@ -29,14 +30,16 @@ export default function Goods() {
     setShowAddForm(false);
   }
 
-  function load(nextFilter = categoryFilter) {
+  function load(nextFilter = categoryFilter, nextPreOrderOnly = preOrderOnly) {
     setLoading(true);
     const q = nextFilter ? `?category=${encodeURIComponent(nextFilter)}` : '';
     Promise.all([
       api(`/api/admin/goods${q}`),
       api('/api/admin/goods-categories')
     ]).then(([goodsRes, categoriesRes]) => {
-      setGoods(goodsRes.goods || []);
+      const items = goodsRes.goods || [];
+      const filtered = nextPreOrderOnly ? items.filter((item) => (item.kind || '') === 'fresh_preorder') : items;
+      setGoods(filtered);
       setCategories(categoriesRes.categories || []);
     }).catch((e) => {
       console.error(e);
@@ -44,7 +47,7 @@ export default function Goods() {
   }
 
   function applyCategoryFilter(nextValue = categoryFilter) {
-    load(nextValue);
+    load(nextValue, preOrderOnly);
   }
 
   useEffect(() => { load(''); }, []);
@@ -125,17 +128,19 @@ export default function Goods() {
       </div>
 
       <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <label>{t('Filter by category') || 'Filter by category'}: </label>
-        <ClearableInput
-          list="goods-category-filter-options"
-          value={categoryFilter}
-          onChange={(e) => {
-            const nextValue = e.target.value;
-            setCategoryFilter(nextValue);
-            load(nextValue);
-          }}
-          style={{ minWidth: 220 }}
-        />
+        <label style={{ whiteSpace: 'nowrap' }}>{t('Filter by category') || 'Filter by category'}: </label>
+        <div style={{ width: '33%', minWidth: 180, maxWidth: 260 }}>
+          <ClearableInput
+            list="goods-category-filter-options"
+            value={categoryFilter}
+            onChange={(e) => {
+              const nextValue = e.target.value;
+              setCategoryFilter(nextValue);
+              load(nextValue, preOrderOnly);
+            }}
+            style={{ width: '100%' }}
+          />
+        </div>
         <datalist id="goods-category-filter-options">
           {categories.map((category) => (
             <option key={`filter-${category.id}`} value={category.name}>
@@ -143,28 +148,19 @@ export default function Goods() {
             </option>
           ))}
         </datalist>
-        <button
-          type="button"
-          disabled={!hasActiveFilter}
-          onClick={(e) => {
-            e.preventDefault();
-            setCategoryFilter('');
-            load('');
-          }}
-          style={{
-            fontWeight: 700,
-            fontSize: 16,
-            padding: '6px 12px',
-            border: hasActiveFilter ? '2px solid #007bff' : '2px solid #007bff',
-            borderRadius: 6,
-            backgroundColor: hasActiveFilter ? '#fff' : '#e0e0e0',
-            color: hasActiveFilter ? '#007bff' : '#6c757d',
-            cursor: hasActiveFilter ? 'pointer' : 'not-allowed',
-            opacity: hasActiveFilter ? 1 : 0.85,
-          }}
-        >
-          {t('Clear the Filter') || 'Clear the Filter'}
-        </button>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, marginLeft: 'auto' }}>
+          <input
+            type="checkbox"
+            checked={preOrderOnly}
+            onChange={(e) => {
+              const nextValue = e.target.checked;
+              setPreOrderOnly(nextValue);
+              load(categoryFilter, nextValue);
+            }}
+            style={{ width: 18, height: 18, margin: 0 }}
+          />
+          {t('Pre-Order') || 'Pre-Order'}
+        </label>
       </div>
 
       {(showAddForm || editingId) ? (
@@ -303,6 +299,11 @@ export default function Goods() {
                             <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: Boolean(g.active) ? '#d1fae5' : '#fee2e2', color: Boolean(g.active) ? '#166534' : '#991b1b', fontWeight: 700, fontSize: 12 }}>
                               {Boolean(g.active) ? (t('On Shelf') || 'On Shelf') : (t('Off Shelf') || 'Off Shelf')}
                             </span>
+                            {(g.kind || '') === 'fresh_preorder' ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: '#e0f2fe', color: '#0369a1', fontWeight: 700, fontSize: 12 }}>
+                                {t('Pre-Order') || 'Pre-Order'}
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>

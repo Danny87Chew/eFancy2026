@@ -5,7 +5,7 @@ import QRImage from '../components/QRImage.jsx';
 import ChangeShopModal from '../components/ChangeShopModal.jsx';
 import DeliveryAddressSelector from '../components/DeliveryAddressSelector.jsx';
 import CuttingInfo from '../components/CuttingInfo.jsx';
-import { statusLabel, moduleLabel } from '../utils/status';
+import { statusLabel, moduleLabel, orderTypeLabel } from '../utils/status';
 import { useDraft } from '../state/OrderDraftContext.jsx';
 import { useCurrency } from '../state/CurrencyContext.jsx';
 import { useTranslation } from 'react-i18next';
@@ -369,6 +369,7 @@ export default function OrderDetail() {
       <h1 className="h1">{t('Order')} {order.order_code}</h1>
       <div className="card">
         <div>{t('Status')}: <span className={`status-badge status-${order.status}`}>{statusLabel(order)}</span></div>
+        {orderTypeLabel(order) ? <div style={{ marginTop: 8, fontSize: 15, color: 'var(--primary)', fontWeight: 700 }}>{`(${orderTypeLabel(order)})`}</div> : null}
         <div>{t('Module')}: {moduleLabel(order.module)}</div>
         {(() => {
           let pricing = order.meta?.pricing || null;

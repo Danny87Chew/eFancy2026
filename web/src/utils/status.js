@@ -28,3 +28,9 @@ export function moduleLabel(module) {
     default: return module || '';
   }
 }
+
+export function orderTypeLabel(order) {
+  if (!order) return '';
+  if (order.module === 'efreshes') return i18n.t('Pre-Order');
+  return '';
+}

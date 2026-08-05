@@ -441,7 +441,7 @@ function Login() {
                 onClick={() => setCode(devCode)}
                 style={{ display: 'inline-block', padding: '6px 10px', fontSize: 14 }}
               >
-                {t('Use OTP')}: {devCode}
+                {t('Use OTP: {{code}}', { code: devCode })}
               </button>
             </div>
           )}

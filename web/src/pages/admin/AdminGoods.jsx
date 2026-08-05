@@ -8,11 +8,12 @@ import { getCategoryNameLabel } from '../../i18n.js';
 export default function AdminGoods() {
   const { t } = useTranslation();
   const [goods, setGoods] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const hasActiveFilter = Boolean(categoryFilter?.trim());
 
-  const emptyForm = { name: '', code: '', category: '', kind: 'normal', cutting: '', source_price: '', market_price: '', promotion_price: '', stock: '', weight: '', available_from: '', active: true };
+  const emptyForm = { name: '', code: '', category: '', subcategory: '', kind: 'normal', cutting: '', source_price: '', market_price: '', promotion_price: '', stock: '', weight: '', available_from: '', active: true };
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -42,14 +43,40 @@ export default function AdminGoods() {
     load(nextValue);
   }
 
-  useEffect(() => { load(''); }, []);
+  const subcategoryOptions = form.category
+    ? [...new Set(goods.filter((good) => good.category === form.category && good.subcategory).map((good) => good.subcategory))]
+    : [];
+
+  useEffect(() => {
+    load('');
+    api('/api/admin/goods-categories')
+      .then((res) => setCategories(res.categories || []))
+      .catch((err) => {
+        console.error('Failed loading goods categories', err);
+      });
+  }, []);
 
   function submit(e) {
     e.preventDefault();
     setError(null);
+    const payload = {
+      name: form.name,
+      code: form.code || null,
+      category: form.category || null,
+      subcategory: form.subcategory || null,
+      kind: form.kind,
+      cutting: form.cutting || null,
+      source_price: form.source_price || null,
+      market_price: form.market_price || null,
+      promotion_price: form.promotion_price || null,
+      stock: form.stock || null,
+      weight: form.weight || null,
+      available_from: form.available_from || null,
+      active: form.active,
+    };
     const request = editingId
-      ? api(`/api/admin/goods/${editingId}`, { method: 'PATCH', body: form })
-      : api('/api/admin/goods', { method: 'POST', body: form });
+      ? api(`/api/admin/goods/${editingId}`, { method: 'PATCH', body: payload })
+      : api('/api/admin/goods', { method: 'POST', body: payload });
 
     request.then(() => {
       resetForm();
@@ -80,6 +107,7 @@ export default function AdminGoods() {
       name: good.name || '',
       code: good.code || '',
       category: good.category || '',
+      subcategory: good.subcategory || '',
       kind: good.kind || 'normal',
       cutting: good.cutting || '',
       source_price: sourcePrice,
@@ -169,8 +197,17 @@ export default function AdminGoods() {
                   const matched = categories.find((c) => getCategoryNameLabel(c.name, t) === nextDisplay);
                   const nextCategoryKey = matched ? matched.name : nextDisplay;
                   const nextCutting = getCuttingOptions(nextCategoryKey).includes(form.cutting) ? form.cutting : '';
-                  setForm({ ...form, category: nextCategoryKey, cutting: nextCutting });
+                  setForm({ ...form, category: nextCategoryKey, cutting: nextCutting, subcategory: nextCategoryKey !== form.category ? '' : form.subcategory });
                 }}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', minWidth: 180 }}>
+              {t('Sub-Category') || 'Sub-Category'}
+              <ClearableInput
+                list="admin-goods-subcategory-options"
+                value={form.subcategory}
+                onChange={(e) => setForm({ ...form, subcategory: e.target.value })}
+                placeholder={t('Enter sub-category') || 'Enter sub-category'}
               />
             </label>
             <datalist id="admin-goods-category-options">
@@ -178,6 +215,11 @@ export default function AdminGoods() {
                 <option key={category.id} value={getCategoryNameLabel(category.name, t)}>
                   {getCategoryNameLabel(category.name, t)}
                 </option>
+              ))}
+            </datalist>
+            <datalist id="admin-goods-subcategory-options">
+              {subcategoryOptions.map((option) => (
+                <option key={option} value={option} />
               ))}
             </datalist>
           </div>
@@ -265,7 +307,7 @@ export default function AdminGoods() {
                         <div>
                           <strong>{g.name}</strong>
                           <div style={{ color: '#666', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <span>{g.code ? `Code: ${g.code}` : ''} {g.category ? `· ${getCategoryNameLabel(g.category, t)}` : ''}</span>
+                            <span>{g.code ? `Code: ${g.code}` : ''} {g.category ? `· ${getCategoryNameLabel(g.category, t)}` : ''}{g.subcategory ? ` / ${g.subcategory}` : ''}</span>
                             <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: Boolean(g.active) ? '#d1fae5' : '#fee2e2', color: Boolean(g.active) ? '#166534' : '#991b1b', fontWeight: 700, fontSize: 12 }}>
                               {Boolean(g.active) ? (t('On Shelf') || 'On Shelf') : (t('Off Shelf') || 'Off Shelf')}
                             </span>

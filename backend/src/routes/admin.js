@@ -666,6 +666,36 @@ router.delete('/goods-categories/:id', authRequired, requireAdmin, (req, res) =>
   res.json({ ok: true });
 });
 
+// GET /api/admin/goods-categories/:id/subcategories (admin+)
+router.get('/goods-categories/:id/subcategories', authRequired, requireAdmin, (req, res) => {
+  const categoryId = Number(req.params.id);
+  const category = db.prepare('SELECT id FROM goods_categories WHERE id = ?').get(categoryId);
+  if (!category) return res.status(404).json({ error: 'not_found' });
+  const subcategories = db.prepare('SELECT id, name, created_at FROM goods_subcategories WHERE goods_category_id = ? ORDER BY name ASC').all(categoryId);
+  res.json({ subcategories });
+});
+
+// POST /api/admin/goods-categories/:id/subcategories { name } (admin+)
+router.post('/goods-categories/:id/subcategories', authRequired, requireAdmin, (req, res) => {
+  const categoryId = Number(req.params.id);
+  const category = db.prepare('SELECT id FROM goods_categories WHERE id = ?').get(categoryId);
+  if (!category) return res.status(404).json({ error: 'not_found' });
+  const { name } = req.body || {};
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return res.status(400).json({ error: 'name_required' });
+  try {
+    const info = db.prepare('INSERT INTO goods_subcategories (goods_category_id, name) VALUES (?, ?)').run(categoryId, trimmed);
+    const created = db.prepare('SELECT id, name, created_at FROM goods_subcategories WHERE id = ?').get(info.lastInsertRowid);
+    res.status(201).json({ subcategory: created });
+  } catch (err) {
+    if (err && (err.code === 'SQLITE_CONSTRAINT' || String(err.message || '').toLowerCase().includes('unique'))) {
+      return res.status(409).json({ error: 'subcategory_exists' });
+    }
+    console.error('Failed creating goods sub-category', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // GET /api/admin/goods?category=...  (admin+)
 router.get('/goods', authRequired, requireAdmin, (req, res) => {
   const { category } = req.query || {};
@@ -675,12 +705,12 @@ router.get('/goods', authRequired, requireAdmin, (req, res) => {
   res.json({ goods: enrichGoodsWithImages(rows) });
 });
 
-// PATCH /api/admin/goods/:id  { name?, code?, category?, kind?, price?, source_price?, market_price?, promotion_price?, stock?, weight?, available_from?, cutting?, active?, images? }
+// PATCH /api/admin/goods/:id  { name?, code?, category?, subcategory?, kind?, price?, source_price?, market_price?, promotion_price?, stock?, weight?, available_from?, cutting?, active?, images? }
 router.patch('/goods/:id', authRequired, requireAdmin, (req, res) => {
   const existing = db.prepare('SELECT * FROM goods WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'not_found' });
 
-  const { name, code, category, kind, price, source_price, market_price, promotion_price, stock, weight, available_from, cutting, active, images } = req.body || {};
+  const { name, code, category, subcategory, kind, price, source_price, market_price, promotion_price, stock, weight, available_from, cutting, active, images } = req.body || {};
   const updates = [];
   const values = [];
 
@@ -723,6 +753,9 @@ router.patch('/goods/:id', authRequired, requireAdmin, (req, res) => {
   }
   if (cutting !== undefined) {
     updates.push('cutting = ?'); values.push(cutting == null || String(cutting).trim() === '' ? null : String(cutting).trim());
+  }
+  if (subcategory !== undefined) {
+    updates.push('subcategory = ?'); values.push(subcategory == null || String(subcategory).trim() === '' ? null : String(subcategory).trim());
   }
   if (active !== undefined) {
     updates.push('active = ?'); values.push(active ? 1 : 0);
@@ -776,7 +809,7 @@ router.delete('/goods/:id', authRequired, requireAdmin, (req, res) => {
 
 // POST /api/admin/goods  { name, code?, category?, kind?, price?, source_price?, market_price?, promotion_price?, stock?, weight?, available_from?, cutting?, active?, images? }
 router.post('/goods', authRequired, requireAdmin, (req, res) => {
-  const { name, code, category, kind, price, source_price, market_price, promotion_price, stock, weight, available_from, cutting, active, images } = req.body || {};
+  const { name, code, category, subcategory, kind, price, source_price, market_price, promotion_price, stock, weight, available_from, cutting, active, images } = req.body || {};
   if (!name || !String(name).trim()) return res.status(400).json({ error: 'name_required' });
   const effectiveKind = kind === 'fresh_preorder' ? 'fresh_preorder' : 'normal';
   const effectiveCutting = cutting == null || String(cutting).trim() === '' ? null : String(cutting).trim();
@@ -786,10 +819,11 @@ router.post('/goods', authRequired, requireAdmin, (req, res) => {
   const effectiveWeight = weight != null ? Number(weight) : 0;
   try {
     const info = db.prepare(
-      `INSERT INTO goods (name, code, category, kind, cutting, vendor_user_id, price, source_price, market_price, promotion_price, stock, weight, available_from, active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO goods (name, code, category, subcategory, kind, cutting, vendor_user_id, price, source_price, market_price, promotion_price, stock, weight, available_from, active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       String(name).trim(), code ? String(code).trim() : null, category ? String(category).trim() : null,
+      subcategory ? String(subcategory).trim() : null,
       effectiveKind, effectiveCutting, null, effectiveSourcePrice, effectiveSourcePrice, effectiveMarketPrice, effectivePromotionPrice,
       Number(stock) || 0, Number(effectiveWeight) || 0, available_from ? String(available_from) : null,
       active != null ? (active ? 1 : 0) : 1

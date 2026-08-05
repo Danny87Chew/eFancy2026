@@ -77,7 +77,6 @@ function TopTabs({ isAdminLike, onLogout }) {
     const pathname = location.pathname;
     if (pathname === '/admin' || pathname === '/admin/') return t('Administration');
     if (pathname.startsWith('/admin/frames')) return t('Frames');
-    if (pathname.startsWith('/admin/goods-categories')) return t('Goods Category', { defaultValue: 'Goods Category' });
     if (pathname.startsWith('/admin/vendors')) return t('Vendors');
     if (pathname.startsWith('/admin/lens-brands')) return t('Lens brands');
     if (pathname.startsWith('/admin/orders')) return t('Orders');
@@ -186,6 +185,11 @@ function BottomBar() {
       {isAdmin && (
         <NavLink to="/goods" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
           <span className="icon">🧺</span>{t('Goods')}
+        </NavLink>
+      )}
+      {isAdmin && (
+        <NavLink to="/admin/goods-categories" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+          <span className="icon">🏷️</span>{t('Categories', { defaultValue: 'Categories' })}
         </NavLink>
       )}
       {!isAdmin && isCheckupVendor && (

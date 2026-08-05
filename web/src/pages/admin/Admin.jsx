@@ -9,6 +9,8 @@ import AdminConfig from './AdminConfig.jsx';
 import AdminOrders from './AdminOrders.jsx';
 import AdminUsers from './AdminUsers.jsx';
 import AdminGoodsCategories from './AdminGoodsCategories.jsx';
+import AdminGoodsCategoryHome from './AdminGoodsCategoryHome.jsx';
+import AdminGoodsSubCategories from './AdminGoodsSubCategories.jsx';
 import { useAuth } from '../../state/AuthContext.jsx';
 
 export default function Admin() {
@@ -36,19 +38,22 @@ export default function Admin() {
   return (
     <div>
       <h1 className="h1">{t('Administration')}</h1>
-      <div ref={tabsRef} style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 12 }}>
-        <NavLink to="frames" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Frames') || 'Frames'}</NavLink>
-        <NavLink to="goods-categories" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Goods Category', { defaultValue: 'Goods Category' })}</NavLink>
-        <NavLink to="vendors" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Vendors') || 'Vendors'}</NavLink>
-        <NavLink to="lens-brands" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Lens brands') || 'Lens brands'}</NavLink>
-        <NavLink to="orders" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Orders')}</NavLink>
-        {isSuper && <NavLink to="config" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Config')}</NavLink>}
-        {isSuper && <NavLink to="users" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Users')}</NavLink>}
-      </div>
+      {!location.pathname.startsWith('/admin/goods-categories') && (
+        <div ref={tabsRef} style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 12 }}>
+          <NavLink to="frames" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Frames') || 'Frames'}</NavLink>
+          <NavLink to="vendors" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Vendors') || 'Vendors'}</NavLink>
+          <NavLink to="lens-brands" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Lens brands') || 'Lens brands'}</NavLink>
+          <NavLink to="orders" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Orders')}</NavLink>
+          {isSuper && <NavLink to="config" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Config')}</NavLink>}
+          {isSuper && <NavLink to="users" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Users')}</NavLink>}
+        </div>
+      )}
       <Routes>
         <Route index element={<Navigate to="frames" replace />} />
         <Route path="frames" element={<AdminFrames />} />
-        <Route path="goods-categories" element={<AdminGoodsCategories />} />
+        <Route path="goods-categories" element={<AdminGoodsCategoryHome />} />
+        <Route path="goods-categories/main" element={<AdminGoodsCategories />} />
+        <Route path="goods-categories/sub" element={<AdminGoodsSubCategories />} />
         <Route path="vendors" element={<AdminVendors />} />
         <Route path="vendors/add" element={<AdminVendorCreate />} />
         <Route path="vendors/:id/edit" element={<AdminVendorCreate />} />

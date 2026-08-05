@@ -357,3 +357,50 @@ label.field input, label.field select { margin-top: 4px; }
 }
 
 a { color: var(--primary); text-decoration: none; }
+
+/* OTP boxes: adjacent (no gap), plus clear button and resend area */
+.otp-row { display: flex; gap: 0; align-items: center; }
+.otp-entry { display: flex; flex-direction: column; align-items: flex-start; }
+.otp-input-row { display: flex; align-items: center; gap: 24px; }
+.otp-box {
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 600;
+  padding: 0;
+}
+.otp-box:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+.otp-box:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+.otp-clear {
+  width: 72px;
+  height: 48px;
+  margin-left: 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+.otp-clear:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+.otp-clear:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+.otp-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 0;
+}
+.otp-resend-btn {
+  padding: 4px 8px;
+  font-size: 14px;
+  min-height: 31px;
+  width: auto;
+}
+.otp-suggest { display: inline-block; margin-top: 8px; }
+.otp-timer { font-size: 16px; color: var(--muted); min-width: 28px; text-align: right; display: flex; align-items: center; }

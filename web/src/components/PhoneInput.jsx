@@ -52,7 +52,8 @@ export default function PhoneInput({ value = '', onChange, label, allowAnyLeadin
           disabled={disabled}
           // compute a compact width that's just wide enough for the flag and code
           // add ~3 characters of extra space so codes like '+886' fit comfortably
-          style={{ width: Math.max((String(matchedCode.label || '').length * 8) + 12 + 24, 80), flexShrink: 0, padding: '2px 6px', paddingLeft: 4 }}
+          // increase the computed width by ~50% and bump the minimum to 120px
+          style={{ width: Math.max(((String(matchedCode.label || '').length * 8) + 12 + 24) * 1.5, 120), flexShrink: 0, padding: '2px 6px', paddingLeft: 4 }}
         >
           {COUNTRY_CODES.map(c => (
             <option key={c.code} value={c.code}>{c.label}</option>

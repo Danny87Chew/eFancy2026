@@ -146,7 +146,7 @@ export default function EServices() {
     <div>
       <h1 className="h1">{t('eServices') || 'eServices'}</h1>
       <div className="card">
-        <p className="muted" style={{ marginTop: 0 }}>{t('Find trusted local professionals for common home services.') || 'Find trusted local professionals for common home services.'}</p>
+        <p className="muted" style={{ marginTop: 0, fontSize: '1.2rem' }}>{t('Find trusted local professionals for common home services.') || 'Find trusted local professionals for common home services.'}</p>
       </div>
 
       <div style={{ display: 'grid', gap: 12 }}>
@@ -180,8 +180,10 @@ export default function EServices() {
                   transition: 'transform .12s, opacity .12s',
                 }}
               >
-                <div className="emoji" style={{ fontSize: 'calc(var(--ui-scale) * 42px)' }}>{s.emoji}</div>
-                <div className="title" style={{ marginTop: 6, fontSize: '0.95rem' }}>{t(s.title) || s.title}</div>
+                <div className="emoji" style={{ fontSize: 'calc(var(--ui-scale) * 42px)' }}>
+                  {s.emoji}
+                </div>
+                <div className="title" style={{ marginTop: 6, fontSize: '1.1rem', fontWeight: 700 }}>{t(s.title) || s.title}</div>
               </Link>
             );
           })}

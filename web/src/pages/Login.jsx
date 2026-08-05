@@ -426,6 +426,7 @@ function Login() {
                     setDevCode('');
                     send(intent);
                   }}
+                  style={{ fontWeight: 700, fontSize: '1.15em' }}
                 >
                   {t('Re-Send OTP')}
                 </button>
@@ -451,24 +452,21 @@ function Login() {
       <div className="spacer" />
       {!sent ? (
         pickingRole ? (
-          <div className="btn-row">
-            <button className="btn secondary" onClick={() => setPickingRole(false)}>
+          <div className="btn-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+            <button className="btn secondary" style={{ width: '60%', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em' }} onClick={() => setPickingRole(false)}>
               {t('Back')}
             </button>
-            <button className="btn secondary" onClick={() => send('register')} disabled={busy || !mobileValid || !vendorFieldsComplete}>
+            <button className="btn secondary" style={{ fontWeight: 700, width: '60%', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em' }} onClick={() => send('register')} disabled={busy || !mobileValid || !vendorFieldsComplete}>
               {t('Send OTP To Register')} {t('Send OTP To Register as')} {t(ROLE_LABELS[role])}
             </button>
           </div>
         ) : (
           <>
-            <button className="btn" onClick={() => send('login')} disabled={busy || !mobileValid} style={{ marginBottom: 8 }}>
-              {t('Send OTP')}
-            </button>
-            <div className="btn-row">
-              <button className="btn" onClick={() => send('login')} disabled={busy || !mobileValid}>
+            <div className="btn-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+              <button className="btn secondary" style={{ fontWeight: 700, width: '60%', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em' }} onClick={() => send('login')} disabled={busy || !mobileValid}>
                 {t('Send OTP To Login')}
               </button>
-              <button className="btn secondary" onClick={() => { setErr(''); setHint(''); setPickingRole(true); }} disabled={busy || !mobileValid}>
+              <button className="btn secondary" style={{ fontWeight: 700, width: '60%', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em' }} onClick={() => { setErr(''); setHint(''); setPickingRole(true); }} disabled={busy || !mobileValid}>
                 {t('Send OTP To Register')}
               </button>
             </div>
@@ -476,10 +474,19 @@ function Login() {
         )
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
-          <button className="btn" style={{ width: '50%', margin: '0 auto' }} onClick={verify} disabled={busy || code.length < 6}>
+          <button
+            className="btn"
+            style={{ width: '60%', margin: '0 auto', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em', fontWeight: 700, background: 'var(--primary)', color: '#fff', border: 'none' }}
+            onClick={verify}
+            disabled={busy || code.length < 6}
+          >
             {intent === 'register' ? t('Verify & Register') : t('Verify & Sign in')}
           </button>
-          <button className="btn secondary" style={{ width: '50%', margin: '0 auto' }} onClick={() => { setSent(false); setCode(''); setHint(''); setErr(''); setMobile(DEFAULT_CODE); }}>
+          <button
+            className="btn secondary"
+            style={{ width: '60%', margin: '0 auto', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em', fontWeight: 700 }}
+            onClick={() => { setSent(false); setCode(''); setHint(''); setErr(''); setMobile(DEFAULT_CODE); }}
+          >
             {t('Not Me, Change the Number')}
           </button>
         </div>

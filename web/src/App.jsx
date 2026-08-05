@@ -121,6 +121,7 @@ function BottomBar() {
   const { t } = useTranslation();
   const [cartCount, setCartCount] = useState(getCartCount());
   const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
+  const isConsumer = user && user.role === 'consumer';
   const isCheckupVendor = user && (
     user.role === 'spectacle_checkup_vendor' ||
     vendorContext?.role === 'spectacle_checkup_vendor'
@@ -144,6 +145,7 @@ function BottomBar() {
   const isVendorLike = isCheckupVendor || isProducerVendor || isLensVendor || isFrameVendor || isOtherVendor;
   const isAdminLike = isAdmin || isVendorLike;
   const showCartTab = !isVendorLike && !isAdmin;
+  const showHomeTab = isConsumer;
 
   useEffect(() => {
     const updateCart = () => setCartCount(getCartCount());
@@ -157,9 +159,11 @@ function BottomBar() {
 
   return (
     <nav className="bottombar">
-      <NavLink to="/" end className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
-        <span className="icon">🏠</span>{t('Home')}
-      </NavLink>
+      {showHomeTab && (
+        <NavLink to="/" end className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+          <span className="icon">🏠</span>{t('Home')}
+        </NavLink>
+      )}
       {showCartTab && (
         <NavLink to="/cart" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
           <span className="icon">🛒</span>

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 const DEFAULT = [
   { key: 'espectacles', emoji: '👓', title: 'eSpectacles', to: '/espectacles' },
   { key: 'egroceries', emoji: '🛍️', title: 'eGroceries', to: '/egroceries' },
-  { key: 'efreshes', emoji: '🥬', title: 'eFreshes', to: '/efreshes' },
+  { key: 'efreshes', emoji: '🥬', title: 'eFreshes Pre-Order', to: '/efreshes' },
   { key: 'eflea', emoji: '🪪', title: 'e-Flea Market', to: '/flea-market' },
   { key: 'eservices', emoji: '🛠️', title: 'eServices', to: '/eservices' },
 ];

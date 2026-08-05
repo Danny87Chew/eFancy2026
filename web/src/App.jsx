@@ -19,6 +19,8 @@ import Cart from './pages/Cart.jsx';
 import Me from './pages/Me.jsx';
 import Placeholder from './pages/Placeholder.jsx';
 import EFreshes from './pages/EFreshes.jsx';
+import EServices from './pages/EServices.jsx';
+import EGroceries from './pages/EGroceries.jsx';
 import Admin from './pages/admin/Admin.jsx';
 import VendorCheckup from './pages/vendor/VendorCheckup.jsx';
 import VendorManufacture from './pages/vendor/VendorManufacture.jsx';
@@ -280,10 +282,10 @@ export default function App() {
           <Route path="/espectacles/checkup/:id" element={<Protected><CheckupPending /></Protected>} />
           <Route path="/espectacles/manual-eyesight" element={<Protected><ManualEyesight /></Protected>} />
           <Route path="/espectacles/manual-eyesight/:id" element={<Protected><ManualEyesight /></Protected>} />
-          <Route path="/egroceries" element={<Protected><Placeholder title={t('eGroceries')} /></Protected>} />
+          <Route path="/egroceries" element={<Protected><EGroceries /></Protected>} />
           <Route path="/efreshes" element={<Protected><EFreshes /></Protected>} />
           <Route path="/flea-market" element={<Protected><Placeholder title={t('e-Flea Market')} /></Protected>} />
-          <Route path="/eservices" element={<Protected><Placeholder title={t('eServices')} /></Protected>} />
+          <Route path="/eservices" element={<Protected><EServices /></Protected>} />
           <Route path="/orders" element={<Protected><Orders /></Protected>} />
           <Route path="/orders/:id" element={<Protected><OrderDetail /></Protected>} />
           <Route path="/cart" element={<Protected>{isVendorLike ? <Navigate to="/me" replace /> : <Cart />}</Protected>} />

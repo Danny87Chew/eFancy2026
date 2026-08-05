@@ -187,9 +187,6 @@ button { font-family: inherit; }
   align-items: center;
   justify-content: center;
 }
-}
-
-  font-size: calc(var(--ui-scale) * 27px);
 .bot-tab.bot-logout {
   flex: 0 0 auto;
   padding: 6px 10px;
@@ -216,6 +213,13 @@ button { font-family: inherit; }
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+.eservices-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.eservices-grid .home-tile {
+  padding: 12px;
+}
 .home-tile {
   aspect-ratio: 1 / 1;
   background: var(--surface);
@@ -241,7 +245,6 @@ button { font-family: inherit; }
   box-shadow: var(--shadow);
   margin-bottom: 12px;
 }
-  font-size: calc(var(--ui-scale) * 22.5px);
 .btn {
   appearance: none;
   border: none;

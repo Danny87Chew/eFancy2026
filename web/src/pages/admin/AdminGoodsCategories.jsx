@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../api.js';
 import ClearableInput from '../../components/ClearableInput';
@@ -6,6 +7,7 @@ import { getCategoryNameLabel } from '../../i18n.js';
 
 export default function AdminGoodsCategories() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   const [name, setName] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -72,7 +74,12 @@ export default function AdminGoodsCategories() {
 
   return (
     <div>
-      <h2 className="h2">{t('Goods Category', { defaultValue: 'Goods Category' })}</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
+        <h2 className="h2" style={{ margin: 0 }}>{t('Main Categories') || 'Main Categories'}</h2>
+        <button type="button" className="btn secondary" style={{ width: 'auto', padding: '8px 14px' }} onClick={() => navigate('/admin/goods-categories')}>
+          {t('Back') || 'Back'}
+        </button>
+      </div>
       <form onSubmit={submit} style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <ClearableInput

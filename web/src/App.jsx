@@ -19,6 +19,8 @@ import Cart from './pages/Cart.jsx';
 import Me from './pages/Me.jsx';
 import Placeholder from './pages/Placeholder.jsx';
 import EFreshes from './pages/EFreshes.jsx';
+import EServices from './pages/EServices.jsx';
+import EGroceries from './pages/EGroceries.jsx';
 import Admin from './pages/admin/Admin.jsx';
 import VendorCheckup from './pages/vendor/VendorCheckup.jsx';
 import VendorManufacture from './pages/vendor/VendorManufacture.jsx';
@@ -75,7 +77,6 @@ function TopTabs({ isAdminLike, onLogout }) {
     const pathname = location.pathname;
     if (pathname === '/admin' || pathname === '/admin/') return t('Administration');
     if (pathname.startsWith('/admin/frames')) return t('Frames');
-    if (pathname.startsWith('/admin/goods-categories')) return t('Goods Category', { defaultValue: 'Goods Category' });
     if (pathname.startsWith('/admin/vendors')) return t('Vendors');
     if (pathname.startsWith('/admin/lens-brands')) return t('Lens brands');
     if (pathname.startsWith('/admin/orders')) return t('Orders');
@@ -121,6 +122,7 @@ function BottomBar() {
   const { t } = useTranslation();
   const [cartCount, setCartCount] = useState(getCartCount());
   const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
+  const isConsumer = user && user.role === 'consumer';
   const isCheckupVendor = user && (
     user.role === 'spectacle_checkup_vendor' ||
     vendorContext?.role === 'spectacle_checkup_vendor'
@@ -144,6 +146,7 @@ function BottomBar() {
   const isVendorLike = isCheckupVendor || isProducerVendor || isLensVendor || isFrameVendor || isOtherVendor;
   const isAdminLike = isAdmin || isVendorLike;
   const showCartTab = !isVendorLike && !isAdmin;
+  const showHomeTab = isConsumer;
 
   useEffect(() => {
     const updateCart = () => setCartCount(getCartCount());
@@ -157,9 +160,11 @@ function BottomBar() {
 
   return (
     <nav className="bottombar">
-      <NavLink to="/" end className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
-        <span className="icon">🏠</span>{t('Home')}
-      </NavLink>
+      {showHomeTab && (
+        <NavLink to="/" end className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+          <span className="icon">🏠</span>{t('Home')}
+        </NavLink>
+      )}
       {showCartTab && (
         <NavLink to="/cart" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
           <span className="icon">🛒</span>
@@ -180,6 +185,11 @@ function BottomBar() {
       {isAdmin && (
         <NavLink to="/goods" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
           <span className="icon">🧺</span>{t('Goods')}
+        </NavLink>
+      )}
+      {isAdmin && (
+        <NavLink to="/admin/goods-categories" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+          <span className="icon">🏷️</span>{t('Categories', { defaultValue: 'Categories' })}
         </NavLink>
       )}
       {!isAdmin && isCheckupVendor && (
@@ -276,10 +286,10 @@ export default function App() {
           <Route path="/espectacles/checkup/:id" element={<Protected><CheckupPending /></Protected>} />
           <Route path="/espectacles/manual-eyesight" element={<Protected><ManualEyesight /></Protected>} />
           <Route path="/espectacles/manual-eyesight/:id" element={<Protected><ManualEyesight /></Protected>} />
-          <Route path="/egroceries" element={<Protected><Placeholder title={t('eGroceries')} /></Protected>} />
+          <Route path="/egroceries" element={<Protected><EGroceries /></Protected>} />
           <Route path="/efreshes" element={<Protected><EFreshes /></Protected>} />
           <Route path="/flea-market" element={<Protected><Placeholder title={t('e-Flea Market')} /></Protected>} />
-          <Route path="/eservices" element={<Protected><Placeholder title={t('eServices')} /></Protected>} />
+          <Route path="/eservices" element={<Protected><EServices /></Protected>} />
           <Route path="/orders" element={<Protected><Orders /></Protected>} />
           <Route path="/orders/:id" element={<Protected><OrderDetail /></Protected>} />
           <Route path="/cart" element={<Protected>{isVendorLike ? <Navigate to="/me" replace /> : <Cart />}</Protected>} />

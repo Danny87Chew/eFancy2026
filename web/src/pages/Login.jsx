@@ -33,9 +33,11 @@ function Login() {
   const { requestOtp, verifyOtp } = useAuth();
 
   const { t } = useTranslation();
-
   const [mobile, setMobile] = useState(DEFAULT_CODE);
   const [code, setCode] = useState('');
+  const [devCode, setDevCode] = useState('');
+  const [otpTimer, setOtpTimer] = useState(0);
+  const [otpCycle, setOtpCycle] = useState(0);
   const [intent, setIntent] = useState('login');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -53,6 +55,7 @@ function Login() {
     business_licence: '',
     staff_mobiles: [],
   });
+  
   const [vendorHours, setVendorHours] = useState(createEmptyHours());
   const [vendorAllDays, setVendorAllDays] = useState(false);
   const [postcodeLookup, setPostcodeLookup] = useState({ loading: false, error: '' });
@@ -73,6 +76,78 @@ function Login() {
 
   const isVendor = role !== 'consumer';
 
+  function OTPBoxes({ value, onChange }) {
+    const inputs = React.useRef([]);
+
+    React.useEffect(() => {
+      // keep inputs' values in sync; if fully filled, focus none
+    }, [value]);
+
+    const handleChange = (idx, e) => {
+      const v = (e.target.value || '').replace(/\D/g, '').slice(0, 1);
+      const arr = value.split('').slice(0, 6);
+      while (arr.length < 6) arr.push('');
+      arr[idx] = v;
+      const next = arr.join('').replace(/\s/g, '');
+      onChange(next);
+      if (v && idx < 5) inputs.current[idx + 1]?.focus();
+    };
+
+    const handleKeyDown = (idx, e) => {
+      if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+        inputs.current[idx - 1]?.focus();
+      }
+      if (e.key === 'ArrowLeft' && idx > 0) inputs.current[idx - 1]?.focus();
+      if (e.key === 'ArrowRight' && idx < 5) inputs.current[idx + 1]?.focus();
+    };
+
+    return (
+      <div className="otp-row" style={{ display: 'flex', gap: 0, alignItems: 'center' }}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <input
+            key={i}
+            ref={(el) => (inputs.current[i] = el)}
+            className="otp-box"
+            type="text"
+            inputMode="numeric"
+            maxLength={1}
+            value={(value || '')[i] || ''}
+            onChange={(e) => handleChange(i, e)}
+            onKeyDown={(e) => handleKeyDown(i, e)}
+          />
+        ))}
+        <button
+          type="button"
+          className="otp-clear"
+          onClick={() => { onChange(''); inputs.current[0]?.focus(); }}
+          aria-label="Clear OTP"
+        >
+          ×
+        </button>
+      </div>
+    );
+  }
+
+  useEffect(() => {
+    if (!sent) {
+      setOtpTimer(0);
+      return undefined;
+    }
+
+    setOtpTimer(60);
+    const id = window.setInterval(() => {
+      setOtpTimer((s) => {
+        if (s <= 1) {
+          window.clearInterval(id);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(id);
+  }, [sent, otpCycle]);
+
   useEffect(() => {
     if (isVendor && !sent) {
       setVendorInfo((prev) => ({ ...prev, contact_number: mobile }));
@@ -90,6 +165,21 @@ function Login() {
       // ignore
     }
   }, [location.search, mobile, isVendor, sent]);
+
+  // If user clears the mobile (PhoneInput sets it back to a bare country code
+  // like "+65"), revert UI to the initial state: hide OTP segment and
+  // clear OTP-related fields.
+  useEffect(() => {
+    const isBareCountryCode = typeof mobile === 'string' && /^\+\d{1,4}$/.test(mobile);
+    if (isBareCountryCode && sent) {
+      setSent(false);
+      setCode('');
+      setDevCode('');
+      setHint('');
+      setErr('');
+      setOtpTimer(0);
+    }
+  }, [mobile, sent]);
 
   const errorMessage = (msg) => {
     if (msg === 'user_not_found') return 'No account found for this mobile. Please register.';
@@ -112,8 +202,14 @@ function Login() {
       const r = await requestOtp(mobile, which, which === 'register' ? role : undefined, info);
       setIntent(which);
       setSent(true);
+      setOtpCycle((prev) => prev + 1);
       setPickingRole(false);
-          if (r.devCode) setHint(t('Dev OTP: {{code}}', { code: r.devCode }));
+      if (r.devCode) {
+        setDevCode(r.devCode);
+        setHint(t('Dev OTP: {{code}}', { code: r.devCode }));
+      } else {
+        setDevCode('');
+      }
     } catch (e) {
       setErr(errorMessage(e.message) || 'Failed to send OTP');
     } finally {
@@ -265,7 +361,9 @@ function Login() {
             </div>
           </div>
       <div className="spacer" />
-      <PhoneInput label={t('Mobile (with country code)')} value={mobile} onChange={setMobile} />
+      <div style={{ width: '60%' }}>
+        <PhoneInput label={t('Mobile (with country code)')} value={mobile} onChange={setMobile} />
+      </div>
       {pickingRole && !sent && (
         <>
           <label className="field">
@@ -309,10 +407,44 @@ function Login() {
               <div style={{ fontSize: 14, fontWeight: 500, marginTop: 6 }}>{t(ROLE_LABELS[role])}</div>
             </div>
           )}
-          <label className="field">
-            {t('OTP code')}
-            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t('6-digit code')} inputMode="numeric" />
+          <label className="field" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <span>{t('OTP code')}</span>
           </label>
+          <div className="otp-entry">
+            <div className="otp-input-row">
+              <OTPBoxes value={code} onChange={(v) => setCode(v)} />
+              <div className="otp-actions">
+                <div className="muted otp-timer">{otpTimer > 0 ? `${otpTimer}s` : ''}</div>
+                <button
+                  type="button"
+                  className="btn ghost otp-resend-btn"
+                  disabled={otpTimer > 0 || busy}
+                  onClick={() => {
+                    setCode('');
+                    setErr('');
+                    setHint('');
+                    setDevCode('');
+                    send(intent);
+                  }}
+                  style={{ fontWeight: 700, fontSize: '1.15em' }}
+                >
+                  {t('Re-Send OTP')}
+                </button>
+              </div>
+            </div>
+          </div>
+          {devCode && (
+            <div style={{ textAlign: 'center', marginTop: 8 }}>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => setCode(devCode)}
+                style={{ display: 'inline-block', padding: '6px 10px', fontSize: 14 }}
+              >
+                {t('Use OTP: {{code}}', { code: devCode })}
+              </button>
+            </div>
+          )}
         </>
       )}
       {hint && <div className="muted">{hint}</div>}
@@ -320,30 +452,41 @@ function Login() {
       <div className="spacer" />
       {!sent ? (
         pickingRole ? (
-          <div className="btn-row">
-            <button className="btn secondary" onClick={() => setPickingRole(false)}>
+          <div className="btn-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+            <button className="btn secondary" style={{ width: '60%', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em' }} onClick={() => setPickingRole(false)}>
               {t('Back')}
             </button>
-            <button className="btn secondary" onClick={() => send('register')} disabled={busy || !mobileValid || !vendorFieldsComplete}>
+            <button className="btn secondary" style={{ fontWeight: 700, width: '60%', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em' }} onClick={() => send('register')} disabled={busy || !mobileValid || !vendorFieldsComplete}>
               {t('Send OTP To Register')} {t('Send OTP To Register as')} {t(ROLE_LABELS[role])}
             </button>
           </div>
         ) : (
-          <div className="btn-row">
-            <button className="btn" onClick={() => send('login')} disabled={busy || !mobileValid}>
-              {t('Send OTP To Login')}
-            </button>
-            <button className="btn secondary" onClick={() => { setErr(''); setHint(''); setPickingRole(true); }} disabled={busy || !mobileValid}>
-              {t('Send OTP To Register')}
-            </button>
-          </div>
+          <>
+            <div className="btn-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+              <button className="btn secondary" style={{ fontWeight: 700, width: '60%', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em' }} onClick={() => send('login')} disabled={busy || !mobileValid}>
+                {t('Send OTP To Login')}
+              </button>
+              <button className="btn secondary" style={{ fontWeight: 700, width: '60%', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em' }} onClick={() => { setErr(''); setHint(''); setPickingRole(true); }} disabled={busy || !mobileValid}>
+                {t('Send OTP To Register')}
+              </button>
+            </div>
+          </>
         )
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
-          <button className="btn" style={{ width: '50%', margin: '0 auto' }} onClick={verify} disabled={busy || code.length < 4}>
+          <button
+            className="btn"
+            style={{ width: '60%', margin: '0 auto', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em', fontWeight: 700, background: 'var(--primary)', color: '#fff', border: 'none' }}
+            onClick={verify}
+            disabled={busy || code.length < 6}
+          >
             {intent === 'register' ? t('Verify & Register') : t('Verify & Sign in')}
           </button>
-          <button className="btn secondary" style={{ width: '50%', margin: '0 auto' }} onClick={() => { setSent(false); setCode(''); setHint(''); setErr(''); }}>
+          <button
+            className="btn secondary"
+            style={{ width: '60%', margin: '0 auto', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em', fontWeight: 700 }}
+            onClick={() => { setSent(false); setCode(''); setHint(''); setErr(''); setMobile(DEFAULT_CODE); }}
+          >
             {t('Not Me, Change the Number')}
           </button>
         </div>

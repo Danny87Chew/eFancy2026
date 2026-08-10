@@ -150,6 +150,9 @@ function init() {
   if (!goodCols.includes('cutting')) {
     db.prepare('ALTER TABLE goods ADD COLUMN cutting TEXT').run();
   }
+  if (!goodCols.includes('subcategory')) {
+    db.prepare('ALTER TABLE goods ADD COLUMN subcategory TEXT').run();
+  }
   // ensure code uniqueness for goods if desired (not enforced for name)
   db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_goods_code_unique ON goods(code)').run();
 
@@ -158,6 +161,15 @@ function init() {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS goods_subcategories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    goods_category_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(goods_category_id, name),
+    FOREIGN KEY(goods_category_id) REFERENCES goods_categories(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS partner_shops (

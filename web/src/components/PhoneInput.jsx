@@ -28,8 +28,9 @@ export default function PhoneInput({ value = '', onChange, label, allowAnyLeadin
 
   const handleCode = (e) => {
     const nextCode = e.target.value;
-    const nextRule = COUNTRY_CODES.find(c => c.code === nextCode) || COUNTRY_CODES[0];
-    onChange(nextCode + local.slice(0, nextRule.len));
+    // Clear the local number when the country code changes so the caller
+    // returns only the new country code (user must re-enter the local part).
+    onChange(nextCode);
   };
 
   const handleLocal = (e) => {
@@ -46,14 +47,14 @@ export default function PhoneInput({ value = '', onChange, label, allowAnyLeadin
     <label className="field">
       {label}
       <div style={{ display: 'flex', gap: 6 }}>
-        <select
+          <select
           value={matchedCode.code}
           onChange={handleCode}
           disabled={disabled}
           // compute a compact width that's just wide enough for the flag and code
           // add ~3 characters of extra space so codes like '+886' fit comfortably
-          // increase the computed width by ~50% and bump the minimum to 120px
-          style={{ width: Math.max(((String(matchedCode.label || '').length * 8) + 12 + 24) * 1.5, 120), flexShrink: 0, padding: '2px 6px', paddingLeft: 4 }}
+          // previous multiplier was 1.5; reduce overall width by ~15% -> 1.275, and reduce min to 102px
+          style={{ width: Math.max(((String(matchedCode.label || '').length * 8) + 12 + 24) * 1.275, 102), flexShrink: 0, padding: '2px 6px', paddingLeft: 4 }}
         >
           {COUNTRY_CODES.map(c => (
             <option key={c.code} value={c.code}>{c.label}</option>

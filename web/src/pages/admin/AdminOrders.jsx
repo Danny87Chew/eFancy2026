@@ -303,7 +303,7 @@ function OrderDetails({ order, allOrders, refresh }) {
           <div className="label" style={{ fontSize: 11, fontWeight: 700, color: '#2563eb' }}>{t('FRAME')}</div>
           <ul style={{ paddingLeft: 18, margin: 0 }}>
             {meta.frame_brand ? <li>{t('Frame Brand')}: {meta.frame_brand}</li> : null}
-            {frameName ? <li>{t('Frame Name')}: {frameName}</li> : null}
+            {frameName ? <li><strong>{t('Frame')}:</strong> {frameName}</li> : null}
             {meta.frame_code ? <li>{t('Frame Code')}: {meta.frame_code}</li> : null}
           </ul>
         </div>
@@ -313,7 +313,7 @@ function OrderDetails({ order, allOrders, refresh }) {
           <div className="label" style={{ fontSize: 11, fontWeight: 700, color: '#2563eb' }}>{t('LENS')}</div>
           <ul style={{ paddingLeft: 18, margin: 0 }}>
             {lens.brand ? <li>{t('Lens Brand')}: {lens.brand}</li> : null}
-            {lens.name ? <li>{t('Lens Name')}: {lens.name}</li> : null}
+            {lens.name ? <li><strong>{t('Lens')}:</strong> {lens.name}</li> : null}
             {(lens.code || lens.brand_code) ? <li>{t('Lens Code')}: {lens.code || lens.brand_code}</li> : null}
           </ul>
           {lens.thickness && <div style={{ marginTop: 4 }}>{t('Thickness')}: <strong>{lens.thickness}</strong></div>}
@@ -360,34 +360,40 @@ function OrderDetails({ order, allOrders, refresh }) {
       {order.items && order.items.length > 0 && (
         <div style={{ marginBottom: 6 }}>
           <div className="label" style={{ fontSize: 11 }}>{t('ITEMS')}</div>
-          {order.items.map(it => {
-            let meta = null;
-            try { meta = it.meta_json ? JSON.parse(it.meta_json) : null; } catch (e) { meta = null; }
-            const baseUnit = meta && (meta.frame_base_price != null) ? Number(meta.frame_base_price) : null;
-            const promoUnit = meta && (meta.frame_promo_price != null) ? Number(meta.frame_promo_price) : null;
-            const showCrossed = baseUnit != null && promoUnit != null && promoUnit > 0 && promoUnit < baseUnit;
-            return (
-              <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div>{it.label} × {it.qty}</div>
+          <ol style={{ margin: '6px 0 0 0', paddingLeft: 22 }}>
+            {order.items.map((it, index) => {
+              let meta = null;
+              try { meta = it.meta_json ? JSON.parse(it.meta_json) : null; } catch (e) { meta = null; }
+              const baseUnit = meta && (meta.frame_base_price != null) ? Number(meta.frame_base_price) : null;
+              const promoUnit = meta && (meta.frame_promo_price != null) ? Number(meta.frame_promo_price) : null;
+              const showCrossed = baseUnit != null && promoUnit != null && promoUnit > 0 && promoUnit < baseUnit;
+              const cutting = it.cutting || (meta && meta.cutting) || null;
+              const displayCutting = cutting && cutting !== 'Standard' ? cutting : null;
+              const itemName = it.kind === 'frame' ? (it.label || 'Frame') : it.kind === 'lens' ? `${t('Lens')}: ${it.label || 'Lens'}` : (it.label || 'Item');
+              const qtyLabel = Number(it.qty || 1) > 1 ? ` × ${it.qty}` : '';
+              const priceLabel = it.unit_price != null ? ` • ${fmt(Number(it.unit_price) * Number(it.qty || 1))}` : '';
+              return (
+                <li key={it.id || `${order.id}-${index}`} style={{ marginBottom: 6, paddingLeft: 2, lineHeight: 1.5 }}>
+                  <span>
+                    {itemName}{qtyLabel}
+                    {displayCutting ? <span> • <span style={{ fontWeight: 700 }}>Cutting:</span> <span style={{ fontWeight: 700, fontStyle: 'italic' }}>{t(displayCutting) || displayCutting}</span></span> : null}
+                    {priceLabel}
+                  </span>
                   {showCrossed ? (
-                    <div style={{ fontSize: 13 }}>
+                    <div style={{ fontSize: 12, marginTop: 2 }}>
                       <span style={{ textDecoration: 'line-through', color: 'var(--muted)', marginRight: 8 }}>{fmt(baseUnit)}</span>
                       <span style={{ fontWeight: 700 }}>{fmt(promoUnit)}</span>
                     </div>
                   ) : null}
-                </div>
-                <div>
-                  {showCrossed ? fmt(promoUnit * it.qty) : fmt(it.unit_price * it.qty)}
-                </div>
-              </div>
-            );
-          })}
+                </li>
+              );
+            })}
+          </ol>
         </div>
       )}
       {order.payments && order.payments.length > 0 && (
-        <div>
-          <div className="label" style={{ fontSize: 11 }}>{t('PAYMENTS')}</div>
+        <div style={{ marginTop: 18 }}>
+          <div className="label" style={{ fontSize: 13, fontWeight: 700 }}>{t('PAYMENTS')}</div>
           {order.payments.map(p => (
             <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>{p.method} · {p.status}</span>
@@ -474,10 +480,174 @@ export default function AdminOrders() {
   const [busy, setBusy] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [selectedPrintIds, setSelectedPrintIds] = useState([]);
   const [publishForm, setPublishForm] = useState(null); // { orderId, orderCode, vendorPrice }
 
   const toggleExpand = (id) => {
     setExpandedId(prev => prev === id ? null : id);
+  };
+
+  const togglePrintSelection = (id) => {
+    setSelectedPrintIds(prev => prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]);
+  };
+
+  const formatPrintMoney = (value) => {
+    const safeValue = Number(value || 0);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(safeValue);
+  };
+
+  const parseItemMeta = (item) => {
+    if (!item?.meta_json) return {};
+    try { return JSON.parse(item.meta_json); } catch (e) { return {}; }
+  };
+
+  const openPrintWindow = (ordersToPrint, { vendorOnly = false } = {}) => {
+    if (!Array.isArray(ordersToPrint) || ordersToPrint.length === 0) {
+      alert('No orders selected to print.');
+      return;
+    }
+
+    const makeItemText = (item, index) => {
+      const meta = parseItemMeta(item);
+      const qty = Number(item.qty || 1);
+      const cutting = item.cutting || meta?.cutting || null;
+      const displayCutting = cutting && cutting !== 'Standard' ? cutting : null;
+      const itemName = item.kind === 'frame' ? (item.label || 'Frame') : item.kind === 'lens' ? `Lens: ${item.label || 'Lens'}` : (item.label || 'Item');
+      const baseText = `${index + 1}. ${itemName}${qty > 1 ? ` × ${qty}` : ''}`;
+      const priceText = vendorOnly || item.unit_price == null ? '' : ` • ${formatPrintMoney(Number(item.unit_price) * qty)}`;
+      const cuttingText = displayCutting ? ` • <span style="font-weight:700;">Cutting:</span> <span style="font-weight:700; font-style:italic;">${displayCutting}</span>` : '';
+      return `${baseText}${cuttingText}${priceText}`;
+    };
+
+    const html = ordersToPrint.map((order) => {
+      const orderItems = Array.isArray(order.items) ? order.items : [];
+      const orderPayments = Array.isArray(order.payments) ? order.payments : [];
+      const total = Number(order.total || 0);
+      const itemsHtml = orderItems.map((item, index) => `<div style="margin-bottom:8px;">${makeItemText(item, index)}</div>`).join('');
+      const paymentsHtml = vendorOnly ? '' : orderPayments.length ? orderPayments.map((payment) => `
+        <div style="display:flex; justify-content:space-between; gap:12px; margin-bottom:6px;">
+          <span>${payment.method || 'Payment'} · ${payment.status || ''}</span>
+          <span>${formatPrintMoney(payment.amount || 0)}</span>
+        </div>
+      `).join('') : '<div>No payment info.</div>';
+      const totalHtml = vendorOnly ? '' : `
+        <div style="display:flex; justify-content:space-between; gap:12px; font-weight:700; margin-top:12px; border-top:1px solid #d1d5db; padding-top:8px;">
+          <span>Total</span>
+          <span>${formatPrintMoney(total)}</span>
+        </div>
+      `;
+
+      return vendorOnly ? `
+        <section style="border:1px solid #d1d5db; border-radius:10px; padding:18px; margin:0 0 18px 0; font-size:20px; line-height:1.5;">
+          <h2 style="margin:0 0 12px 0; font-size:28px;">${order.order_code || 'Order'}</h2>
+          <div style="font-size:20px; font-weight:700; margin:10px 0 8px 0;">ITEMS</div>
+          <div style="margin-bottom:12px;">${itemsHtml || '<div>No items.</div>'}</div>
+        </section>
+      ` : `
+        <section style="border:1px solid #d1d5db; border-radius:10px; padding:18px; margin:0 0 18px 0;">
+          <h2 style="margin:0 0 10px 0; font-size:24px;">${order.order_code || 'Order'}</h2>
+          <div style="margin-bottom:8px; font-size:14px;"><strong>Status:</strong> ${order.status || ''}</div>
+          <div style="margin-bottom:8px; font-size:14px;"><strong>Created:</strong> ${order.created_at || ''}</div>
+          <div style="margin-bottom:8px; font-size:14px;"><strong>Paid:</strong> ${order.paid_at || '—'}</div>
+          <div style="margin-bottom:12px; font-size:14px;"><strong>User:</strong> #${order.user_id ?? ''}</div>
+          <div style="font-size:16px; font-weight:700; margin:10px 0 8px 0;">ITEMS</div>
+          <div style="margin-bottom:12px;">${itemsHtml || '<div>No items.</div>'}</div>
+          ${paymentsHtml ? `<div style="font-size:16px; font-weight:700; margin:10px 0 8px 0;">PAYMENTS</div><div>${paymentsHtml}</div>` : ''}
+          ${totalHtml}
+        </section>
+      `;
+    }).join('');
+
+    const existingRoot = document.getElementById('order-print-root');
+    if (existingRoot) existingRoot.remove();
+    const existingStyle = document.getElementById('order-print-style');
+    if (existingStyle) existingStyle.remove();
+
+    const printContainer = document.createElement('div');
+    printContainer.id = 'order-print-root';
+    printContainer.style.cssText = 'position: fixed; left: -9999px; top: 0; width: 0; height: 0; overflow: hidden; font-family: Arial, sans-serif; color: #111827;';
+    printContainer.innerHTML = html;
+    document.body.appendChild(printContainer);
+
+    const printStyle = document.createElement('style');
+    printStyle.id = 'order-print-style';
+    printStyle.textContent = `
+      @media print {
+        @page { margin: 12mm; }
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #fff !important;
+        }
+        body > :not(#order-print-root) {
+          display: none !important;
+        }
+        #order-print-root {
+          display: block !important;
+          visibility: visible !important;
+          position: static !important;
+          left: auto !important;
+          top: auto !important;
+          width: 100% !important;
+          height: auto !important;
+          overflow: visible !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        #order-print-root > section {
+          display: block !important;
+          border: 1px solid #d1d5db !important;
+          border-radius: 10px;
+          padding: 18px !important;
+          margin: 0 0 18px 0 !important;
+          page-break-before: auto !important;
+          page-break-after: always !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        #order-print-root > section:last-child {
+          page-break-after: auto !important;
+        }
+      }
+    `;
+    document.head.appendChild(printStyle);
+
+    const cleanupPrint = () => {
+      if (printContainer) printContainer.remove();
+      if (printStyle) printStyle.remove();
+      window.removeEventListener('afterprint', cleanupPrint);
+    };
+    window.addEventListener('afterprint', cleanupPrint, { once: true });
+
+    setTimeout(() => {
+      window.print();
+    }, 50);
+  };
+
+  const printAllFiltered = () => {
+    openPrintWindow(displayed, { vendorOnly: false });
+  };
+
+  const selectAllPrintOrders = () => {
+    setSelectedPrintIds(displayed.map((order) => order.id));
+  };
+
+  const deselectAllPrintOrders = () => {
+    setSelectedPrintIds([]);
+  };
+
+  const printSelectedOrders = () => {
+    const selectedOrders = displayed.filter((order) => selectedPrintIds.includes(order.id));
+    if (!selectedOrders.length) {
+      alert('Please select at least one order to print.');
+      return;
+    }
+    openPrintWindow(selectedOrders, { vendorOnly: false });
+  };
+
+  const printToVendor = () => {
+    const selectedOrders = displayed.filter((order) => selectedPrintIds.includes(order.id));
+    openPrintWindow(selectedOrders.length ? selectedOrders : displayed, { vendorOnly: true });
   };
 
   const openPublish = (o) => {
@@ -539,6 +709,11 @@ export default function AdminOrders() {
     } catch (e) {
       alert(e?.data?.error || e.message);
     } finally { setBusy(null); }
+  };
+
+  const printOrder = (order) => {
+    if (!order) return;
+    openPrintWindow([order], { vendorOnly: false });
   };
 
   const upload = async (id) => {
@@ -621,6 +796,36 @@ export default function AdminOrders() {
         <button className="btn secondary" style={{ width: 'auto' }} onClick={finalise}>
           {t('Run auto-finalise (12h+)')}
         </button>
+        <button className="btn" style={{ width: 'auto', whiteSpace: 'nowrap' }} onClick={selectAllPrintOrders}>
+          Select All
+        </button>
+        <button
+          className="btn secondary"
+          style={{ width: 'auto', whiteSpace: 'nowrap', opacity: selectedPrintIds.length ? 1 : 0.5 }}
+          onClick={deselectAllPrintOrders}
+          disabled={selectedPrintIds.length === 0}
+        >
+          Deselect
+        </button>
+        <button className="btn" style={{ width: 'auto', whiteSpace: 'nowrap' }} onClick={printAllFiltered}>
+          Print All
+        </button>
+        <button
+          className="btn"
+          style={{ width: 'auto', whiteSpace: 'nowrap', opacity: selectedPrintIds.length ? 1 : 0.5 }}
+          onClick={printSelectedOrders}
+          disabled={selectedPrintIds.length === 0}
+        >
+          Print Selected Orders
+        </button>
+        <button
+          className="btn secondary"
+          style={{ width: 'auto', whiteSpace: 'nowrap', opacity: selectedPrintIds.length ? 1 : 0.5 }}
+          onClick={printToVendor}
+          disabled={selectedPrintIds.length === 0}
+        >
+          Print To Vendor
+        </button>
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
@@ -642,20 +847,35 @@ export default function AdminOrders() {
       {displayed.map(o => {
         const isTerminal = TERMINAL.includes(o.status);
         const workflow = workflowTargets(o.status);
+        const isSelectedForPrint = selectedPrintIds.includes(o.id);
         return (
           <div key={o.id} className="card">
-            <div
-              style={{ cursor: 'pointer' }}
-              onClick={() => toggleExpand(o.id)}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <strong>{o.order_code}</strong>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className={`status-badge status-${o.status}`}>{o.status}</span>
-                  <span style={{ color: 'var(--muted)', fontSize: 12 }}>{expandedId === o.id ? '▲' : '▼'}</span>
+            <div style={{ display: 'flex', alignItems: 'stretch', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, flexShrink: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={isSelectedForPrint}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={() => togglePrintSelection(o.id)}
+                  aria-label={`Select order ${o.order_code}`}
+                  style={{ width: 22, height: 22, margin: 0, verticalAlign: 'middle' }}
+                />
+              </div>
+              <div
+                style={{ cursor: 'pointer', flex: 1, display: 'flex', alignItems: 'center', minWidth: 0 }}
+                onClick={() => toggleExpand(o.id)}
+              >
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <strong>{o.order_code}</strong>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className={`status-badge status-${o.status}`}>{o.status}</span>
+                      <span style={{ color: 'var(--muted)', fontSize: 12 }}>{expandedId === o.id ? '▲' : '▼'}</span>
+                    </div>
+                  </div>
+                  <div className="muted" style={{ marginTop: 2, lineHeight: 1.3 }}>{o.module} · {fmt(o.total)} · user #{o.user_id}</div>
                 </div>
               </div>
-              <div className="muted">{o.module} · {fmt(o.total)} · user #{o.user_id}</div>
             </div>
 
             {expandedId === o.id && (
@@ -665,12 +885,12 @@ export default function AdminOrders() {
             )}
 
             {!isTerminal && expandedId === o.id && (
-              <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'nowrap', overflowX: 'auto', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
                 {/* Publish for Bid — OrderPaid espectacles orders */}
                 {o.status === 'OrderPaid' && o.module === 'espectacles' && (
                     <button
                     className="btn"
-                    style={{ minWidth: 140, width: 'auto', padding: '8px 16px', fontSize: 16, background: '#2563eb' }}
+                    style={{ minWidth: 140, width: 160, padding: '8px 10px', fontSize: 16, background: '#2563eb', whiteSpace: 'nowrap' }}
                     disabled={!!busy}
                     onClick={() => openPublish(o)}
                   >
@@ -682,7 +902,7 @@ export default function AdminOrders() {
                 {o.status === 'PendingForBid' && o.module === 'espectacles' && (
                     <button
                     className="btn secondary"
-                    style={{ minWidth: 140, width: 'auto', padding: '8px 16px', fontSize: 16 }}
+                    style={{ minWidth: 140, width: 160, padding: '8px 10px', fontSize: 16, whiteSpace: 'nowrap' }}
                     disabled={!!busy}
                     onClick={() => openEditPrice(o)}
                   >
@@ -695,7 +915,7 @@ export default function AdminOrders() {
                   <button
                     key={target}
                     className="btn secondary"
-                    style={{ minWidth: 140, width: 'auto', padding: '8px 16px', fontSize: 16 }}
+                    style={{ minWidth: 140, width: 160, padding: '8px 10px', fontSize: 16, whiteSpace: 'nowrap' }}
                     disabled={!!busy}
                     onClick={() => setStatus(o.id, target)}
                   >
@@ -703,11 +923,20 @@ export default function AdminOrders() {
                   </button>
                 ))}
 
+                <button
+                  className="btn secondary"
+                  style={{ minWidth: 140, width: 160, padding: '8px 10px', fontSize: 16, whiteSpace: 'nowrap' }}
+                  disabled={!!busy}
+                  onClick={() => printOrder(o)}
+                >
+                  🖨️ Print
+                </button>
+
                 {/* Cancel — hidden if manufacturer has taken the spectacles order */}
                 {!(o.module === 'espectacles' && o.manufacturer_vendor_id) && (
                   <button
                     className="btn secondary"
-                    style={{ minWidth: 140, width: 'auto', padding: '8px 16px', fontSize: 16, color: '#dc2626', borderColor: '#dc2626' }}
+                    style={{ minWidth: 140, width: 160, padding: '8px 10px', fontSize: 16, color: '#dc2626', borderColor: '#dc2626', whiteSpace: 'nowrap' }}
                     disabled={!!busy}
                     onClick={() => setConfirmAction({ orderId: o.id, orderCode: o.order_code, status: 'Cancelled', label: 'Cancel Order' })}
                   >
@@ -719,7 +948,7 @@ export default function AdminOrders() {
                 {isSuperAdmin && (
                   <button
                     className="btn secondary"
-                    style={{ minWidth: 140, width: 'auto', padding: '8px 16px', fontSize: 16 }}
+                    style={{ minWidth: 140, width: 160, padding: '8px 10px', fontSize: 16, whiteSpace: 'nowrap' }}
                     disabled={!!busy}
                     onClick={() => setConfirmAction({ orderId: o.id, orderCode: o.order_code, status: 'SystemDone', label: 'Close Order' })}
                     >

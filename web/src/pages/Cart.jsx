@@ -178,12 +178,18 @@ export default function Cart() {
                   />
                   <div style={{ display: 'grid', gap: 4, flex: 1 }}>
                     <div style={{ fontWeight: 700 }}>{item.name}</div>
-                    <div className="muted">
-                      {item.category || ''}
-                      {item.cutting ? ` • ${item.cutting}` : ''}
-                      {item.weight ? ` • ${item.weight}g` : ''}
-                      {typeof item.price === 'number' ? ` • ${Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(item.price)}` : ''}
-                      {item.preorder ? ` • ${t('Pre-order') || 'Pre-order'}` : ''}
+                    <div className="muted" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      <span>{item.category || ''}</span>
+                      {item.cutting && item.cutting !== 'Standard' ? (
+                        <span>
+                          <span>• </span>
+                          <span style={{ fontWeight: 700 }}>Cutting:</span>{' '}
+                          <span style={{ fontWeight: 700, fontStyle: 'italic' }}>{item.cutting}</span>
+                        </span>
+                      ) : null}
+                      {item.weight ? <span>• {item.weight}g</span> : null}
+                      {typeof item.price === 'number' ? <span>• {Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(item.price)}</span> : null}
+                      {item.preorder ? <span>• {t('Pre-order') || 'Pre-order'}</span> : null}
                     </div>
                   </div>
                 </div>
@@ -212,7 +218,7 @@ export default function Cart() {
                   step="1"
                   value={item.quantity || 1}
                   onChange={(e) => changeQuantity(item.id, Math.max(1, Math.floor(Number(e.target.value) || 1)))}
-                  style={{ width: 48, textAlign: 'center' }}
+                  style={{ width: 96, minWidth: 96, textAlign: 'center', fontWeight: 600 }}
                 />
                 <button
                   type="button"

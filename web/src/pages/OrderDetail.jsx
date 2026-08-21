@@ -454,7 +454,7 @@ export default function OrderDetail() {
           <div style={{ fontWeight: 700, marginBottom: 6 }}>{t('Frame')}</div>
           <ul style={{ paddingLeft: 18, margin: 0 }}>
             {order.meta.frame_brand ? <li>{t('Frame Brand')}: {order.meta.frame_brand}</li> : null}
-            <li>{t('Frame Name')}: {localizeMeta(order.meta, 'frame_name') || order.meta.frame_name}</li>
+            <li><strong>{t('Frame')}:</strong> {localizeMeta(order.meta, 'frame_name') || order.meta.frame_name}</li>
             {order.meta.frame_code ? <li>{t('Frame Code')}: {order.meta.frame_code}</li> : null}
           </ul>
           {order.meta.lens && (
@@ -462,7 +462,7 @@ export default function OrderDetail() {
               <div style={{ fontWeight: 700, marginTop: 10, marginBottom: 6 }}>{t('Lens')}</div>
               <ul style={{ paddingLeft: 18, margin: 0 }}>
                 {order.meta.lens.brand ? <li>{t('Lens Brand')}: {order.meta.lens.brand}</li> : null}
-                {order.meta.lens.name ? <li>{t('Lens Name')}: {order.meta.lens.name}</li> : null}
+                {order.meta.lens.name ? <li><strong>{t('Lens')}:</strong> {order.meta.lens.name}</li> : null}
                 {order.meta.lens.code || order.meta.lens.brand_code ? <li>{t('Lens Code')}: {order.meta.lens.code || order.meta.lens.brand_code}</li> : null}
                 <li>{t('Thickness')}: {order.meta.lens.thickness}</li>
                 <li>{t('Blue-light')}: {order.meta.lens.blueLight ? t('Yes') : t('No')}</li>

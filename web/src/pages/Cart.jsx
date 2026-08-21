@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
+import DeliveryAddressSelector from '../components/DeliveryAddressSelector.jsx';
 import { calculateCartTotals, getSelectedCheckoutItems } from './cartUtils.js';
 
 const CART_STORAGE_KEY = 'efreshes-cart';
@@ -33,6 +34,9 @@ export default function Cart() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
+  const [deliveryAddresses, setDeliveryAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -45,6 +49,21 @@ export default function Cart() {
     } catch (e) {
       setItems([]);
     }
+
+    (async () => {
+      try {
+        setLoadingAddresses(true);
+        const result = await api('/api/auth/delivery-addresses');
+        const addresses = result.addresses || [];
+        setDeliveryAddresses(addresses);
+        const defaultAddr = addresses.find((a) => a.is_default === 1) || addresses[0] || null;
+        setSelectedAddressId(defaultAddr ? defaultAddr.id : null);
+      } catch (e) {
+        console.error('Failed to load delivery addresses', e);
+      } finally {
+        setLoadingAddresses(false);
+      }
+    })();
   }, []);
 
   const updateStorage = (nextItems) => {
@@ -87,6 +106,11 @@ export default function Cart() {
 
   const handleCheckout = async () => {
     if (selectedItems.length === 0) return;
+    if (!selectedAddressId) {
+      setCheckoutError(t('Please select a delivery address before checkout.') || 'Please select a delivery address before checkout.');
+      return;
+    }
+
     setCheckoutLoading(true);
     setCheckoutError('');
 
@@ -96,6 +120,7 @@ export default function Cart() {
         body: {
           items: selectedItems,
           total: checkoutTotal,
+          delivery_address_id: selectedAddressId,
         },
       });
 
@@ -126,12 +151,28 @@ export default function Cart() {
           className="btn"
           style={{ minWidth: 90, width: '37.5%', fontSize: '1.5rem' }}
           onClick={handleCheckout}
-          disabled={selectedItems.length === 0 || checkoutLoading}
+          disabled={selectedItems.length === 0 || checkoutLoading || !selectedAddressId}
         >
           {checkoutLoading
             ? t('Processing...') || 'Processing...'
             : `${t('Checkout') || 'Checkout'} (${selectedItems.length})`}
         </button>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 12, fontWeight: 700 }}>{t('Delivery Address') || 'Delivery Address'}</div>
+        {loadingAddresses ? (
+          <div className="muted">{t('Loading addresses...') || 'Loading addresses...'}</div>
+        ) : deliveryAddresses.length > 0 ? (
+          <DeliveryAddressSelector
+            addresses={deliveryAddresses}
+            selectedId={selectedAddressId}
+            onSelect={setSelectedAddressId}
+            title={null}
+          />
+        ) : (
+          <div className="muted">{t('No delivery addresses found. Please add one to continue.') || 'No delivery addresses found. Please add one to continue.'}</div>
+        )}
       </div>
       {items.length === 0 ? (
         <div className="card muted">

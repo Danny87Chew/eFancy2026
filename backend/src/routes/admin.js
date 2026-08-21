@@ -488,14 +488,23 @@ router.patch('/users/:id', authRequired, requireRole('super_admin'), (req, res) 
 router.get('/orders', authRequired, requireAdmin, (req, res) => {
   const rows = db.prepare(
     `SELECT o.*,
+       u.nickname AS user_nickname,
+       u.real_name AS user_real_name,
+       u.mobile AS user_mobile,
        (SELECT COUNT(*) FROM order_comments c WHERE c.order_id = o.id) AS comments_count
      FROM orders o
+     LEFT JOIN users u ON u.id = o.user_id
      ORDER BY o.id DESC LIMIT 200`
   ).all();
   for (const r of rows) {
     r.meta = r.meta_json ? JSON.parse(r.meta_json) : null;
     r.items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(r.id);
     r.payments = db.prepare('SELECT * FROM payments WHERE order_id = ?').all(r.id);
+    if (r.delivery_address_id != null) {
+      r.delivery_address = db.prepare('SELECT * FROM delivery_addresses WHERE id = ?').get(r.delivery_address_id) || { id: r.delivery_address_id };
+    } else if (r.meta && r.meta.delivery_address) {
+      r.delivery_address = r.meta.delivery_address;
+    }
     r.has_opening_comments = Number(r.comments_count || 0) > 0;
   }
   res.json({ orders: rows });

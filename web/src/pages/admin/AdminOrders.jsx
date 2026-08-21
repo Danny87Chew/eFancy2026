@@ -73,6 +73,7 @@ function OrderDetails({ order, allOrders, refresh }) {
 
   const meta = displayOrder.meta || {};
   const eyesight = meta.eyesight || {};
+  const deliveryAddress = (displayOrder.delivery_address || order.delivery_address || (meta.delivery_address && typeof meta.delivery_address === 'object' ? meta.delivery_address : (typeof meta.delivery_address === 'string' ? (() => { try { return JSON.parse(meta.delivery_address); } catch { return null; } })() : null)));
   // Compute pricing fallback: derive from frame and lens items when meta.pricing is missing
   let pricing = displayOrder.meta?.pricing || null;
   if (!pricing && displayOrder.items) {
@@ -292,6 +293,24 @@ function OrderDetails({ order, allOrders, refresh }) {
       {meta.shop_name && (
         <div style={{ marginBottom: 6 }}>{t('Shop')}: <strong>{meta.shop_name}</strong></div>
       )}
+      {deliveryAddress && (
+        <div style={{ marginBottom: 10 }}>
+          <div className="label" style={{ fontSize: 18, fontWeight: 900, color: '#2563eb' }}>{t('Delivery Address')}</div>
+          {deliveryAddress.label && <div style={{ marginTop: 6, marginBottom: 6, color: '#333', fontSize: 16, fontWeight: 700 }}>{deliveryAddress.label}</div>}
+          <div style={{ marginBottom: 4, fontSize: 16, lineHeight: 1.6, fontWeight: 700 }}>
+            {deliveryAddress.recipient_name || t('Unknown recipient')}
+            {deliveryAddress.recipient_phone ? ` · ${deliveryAddress.recipient_phone}` : ''}
+          </div>
+          <div style={{ fontSize: 16, lineHeight: 1.6, fontWeight: 700 }}>{deliveryAddress.address || t('Address not available')}</div>
+          {(deliveryAddress.city || deliveryAddress.state || deliveryAddress.postal_code) && (
+            <div style={{ color: '#555', marginTop: 4, fontSize: 16, lineHeight: 1.6, fontWeight: 700 }}>
+              {deliveryAddress.city ? `${deliveryAddress.city}` : ''}
+              {deliveryAddress.state ? ` ${deliveryAddress.state}` : ''}
+              {deliveryAddress.postal_code ? ` ${deliveryAddress.postal_code}` : ''}
+            </div>
+          )}
+        </div>
+      )}
       {order.status === 'PendingForBid' && (
         <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 16, fontWeight: 700, color: '#000' }}>{t('Vendor Offered')}</span>
@@ -359,7 +378,7 @@ function OrderDetails({ order, allOrders, refresh }) {
       )}
       {order.items && order.items.length > 0 && (
         <div style={{ marginBottom: 6 }}>
-          <div className="label" style={{ fontSize: 11 }}>{t('ITEMS')}</div>
+          <div className="label" style={{ fontSize: 18, fontWeight: 800, color: '#2563eb' }}>{t('ITEMS')}</div>
           <ol style={{ margin: '6px 0 0 0', paddingLeft: 22 }}>
             {order.items.map((it, index) => {
               let meta = null;
@@ -373,14 +392,14 @@ function OrderDetails({ order, allOrders, refresh }) {
               const qtyLabel = Number(it.qty || 1) > 1 ? ` × ${it.qty}` : '';
               const priceLabel = it.unit_price != null ? ` • ${fmt(Number(it.unit_price) * Number(it.qty || 1))}` : '';
               return (
-                <li key={it.id || `${order.id}-${index}`} style={{ marginBottom: 6, paddingLeft: 2, lineHeight: 1.5 }}>
+                <li key={it.id || `${order.id}-${index}`} style={{ marginBottom: 8, paddingLeft: 2, lineHeight: 1.6, fontSize: 17, fontWeight: 500 }}>
                   <span>
                     {itemName}{qtyLabel}
-                    {displayCutting ? <span> • <span style={{ fontWeight: 700 }}>Cutting:</span> <span style={{ fontWeight: 700, fontStyle: 'italic' }}>{t(displayCutting) || displayCutting}</span></span> : null}
+                    {displayCutting ? <span> • <span style={{ fontWeight: 800 }}>Cutting:</span> <span style={{ fontWeight: 800, fontStyle: 'italic' }}>{t(displayCutting) || displayCutting}</span></span> : null}
                     {priceLabel}
                   </span>
                   {showCrossed ? (
-                    <div style={{ fontSize: 12, marginTop: 2 }}>
+                    <div style={{ fontSize: 14, marginTop: 2 }}>
                       <span style={{ textDecoration: 'line-through', color: 'var(--muted)', marginRight: 8 }}>{fmt(baseUnit)}</span>
                       <span style={{ fontWeight: 700 }}>{fmt(promoUnit)}</span>
                     </div>
@@ -404,12 +423,25 @@ function OrderDetails({ order, allOrders, refresh }) {
       )}
       <div className="card" style={{ marginTop: 12, padding: 12, background: '#fff' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-          <div className="label" style={{ fontSize: 11 }}>{t('COMMENTS')}</div>
+          <div className="label" style={{ fontSize: 13, fontWeight: 800 }}>{t('COMMENTS')}</div>
           {hasComments && (
             <button
               type="button"
               className="btn secondary"
-              style={{ width: 'auto', minWidth: 32, padding: '4px 8px', fontSize: 13, lineHeight: 1 }}
+              style={{
+                width: 'auto',
+                minWidth: 54,
+                minHeight: 42,
+                padding: '8px 12px',
+                fontSize: 30,
+                lineHeight: 1,
+                fontWeight: 900,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 10,
+                boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.08)',
+              }}
               title={commentsCollapsed ? t('Expand comments') : t('Collapse comments')}
               onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleCommentsCollapsed(); }}
             >
@@ -459,12 +491,26 @@ function OrderDetails({ order, allOrders, refresh }) {
 }
 
 const ALL_STATUSES = [
-  'OrderPaid', 'PendingForBid', 'PendingForManufacture', 'ManufacturingAccept',
-  'UnderManufacturing', 'ManufactureDone', 'ShippingBack', 'Delivered',
+  'PendingForPayment',
+  'CheckupPaid',
+  'OrderPaid',
+  'Processing',
+  'PendingForBid',
+  'PendingForManufacture',
+  'ManufacturingAccept',
+  'UnderManufacturing',
+  'ManufactureDone',
+  'ShippingBack',
   'ReadyForDelivery',
-  'PendingForDelivery', 'BeingDelivered',
-  'CheckupPaid', 'PendingForOrder', 'PendingForPayment', 'Finalised',
-  'Processing', 'Completed', 'Cancelled', 'SystemDone',
+  'PendingForDelivery',
+  'BeingDelivered',
+  'Delivered',
+  'OrderReceived',
+  'PendingForOrder',
+  'Finalised',
+  'Completed',
+  'Cancelled',
+  'SystemDone',
 ];
 const SPECIAL_FILTERS = [{ value: '_opening_comments', label: 'Openning Comment(s)' }];
 
@@ -482,6 +528,7 @@ export default function AdminOrders() {
   const [expandedId, setExpandedId] = useState(null);
   const [selectedPrintIds, setSelectedPrintIds] = useState([]);
   const [publishForm, setPublishForm] = useState(null); // { orderId, orderCode, vendorPrice }
+  const [selectedStateById, setSelectedStateById] = useState({});
 
   const toggleExpand = (id) => {
     setExpandedId(prev => prev === id ? null : id);
@@ -523,7 +570,20 @@ export default function AdminOrders() {
       const orderItems = Array.isArray(order.items) ? order.items : [];
       const orderPayments = Array.isArray(order.payments) ? order.payments : [];
       const total = Number(order.total || 0);
-      const itemsHtml = orderItems.map((item, index) => `<div style="margin-bottom:8px;">${makeItemText(item, index)}</div>`).join('');
+      const userName = [order.user_real_name || order.user_nickname, order.user_mobile].filter(Boolean).join(' • ');
+      const fallbackUser = order.user_id != null ? `#${order.user_id}` : '—';
+      const displayUser = userName || fallbackUser;
+      const deliveryAddress = order.delivery_address || (order.meta && order.meta.delivery_address) || null;
+      const deliveryAddressHtml = deliveryAddress ? `
+        <div style="margin:12px 0 12px 0; font-size:18px; line-height:1.6;">
+          <div style="font-size:24px; font-weight:800; margin-bottom:6px;">DELIVERY ADDRESS</div>
+          ${deliveryAddress.label ? `<div style="font-size:17px; font-weight:800; margin-bottom:4px;">${deliveryAddress.label}</div>` : ''}
+          <div style="font-size:17px; font-weight:700;"><strong>${deliveryAddress.recipient_name || 'Unknown recipient'}</strong>${deliveryAddress.recipient_phone ? ` • ${deliveryAddress.recipient_phone}` : ''}</div>
+          <div style="font-size:17px; font-weight:700;">${deliveryAddress.address || 'Address not available'}</div>
+          ${(deliveryAddress.city || deliveryAddress.state || deliveryAddress.postal_code) ? `<div style="font-size:17px; font-weight:700;">${[deliveryAddress.city, deliveryAddress.state, deliveryAddress.postal_code].filter(Boolean).join(' ')}</div>` : ''}
+        </div>
+      ` : '';
+      const itemsHtml = orderItems.map((item, index) => `<div style="margin-bottom:8px; font-size:17px;">${makeItemText(item, index)}</div>`).join('');
       const paymentsHtml = vendorOnly ? '' : orderPayments.length ? orderPayments.map((payment) => `
         <div style="display:flex; justify-content:space-between; gap:12px; margin-bottom:6px;">
           <span>${payment.method || 'Payment'} · ${payment.status || ''}</span>
@@ -540,19 +600,21 @@ export default function AdminOrders() {
       return vendorOnly ? `
         <section style="border:1px solid #d1d5db; border-radius:10px; padding:18px; margin:0 0 18px 0; font-size:20px; line-height:1.5;">
           <h2 style="margin:0 0 12px 0; font-size:28px;">${order.order_code || 'Order'}</h2>
-          <div style="font-size:20px; font-weight:700; margin:10px 0 8px 0;">ITEMS</div>
-          <div style="margin-bottom:12px;">${itemsHtml || '<div>No items.</div>'}</div>
+          <div style="font-size:24px; font-weight:800; margin:10px 0 8px 0;">ITEMS</div>
+          <div style="margin-bottom:12px; font-size:17px;">${itemsHtml || '<div>No items.</div>'}</div>
+          ${deliveryAddressHtml || ''}
         </section>
       ` : `
         <section style="border:1px solid #d1d5db; border-radius:10px; padding:18px; margin:0 0 18px 0;">
           <h2 style="margin:0 0 10px 0; font-size:24px;">${order.order_code || 'Order'}</h2>
-          <div style="margin-bottom:8px; font-size:14px;"><strong>Status:</strong> ${order.status || ''}</div>
-          <div style="margin-bottom:8px; font-size:14px;"><strong>Created:</strong> ${order.created_at || ''}</div>
-          <div style="margin-bottom:8px; font-size:14px;"><strong>Paid:</strong> ${order.paid_at || '—'}</div>
-          <div style="margin-bottom:12px; font-size:14px;"><strong>User:</strong> #${order.user_id ?? ''}</div>
-          <div style="font-size:16px; font-weight:700; margin:10px 0 8px 0;">ITEMS</div>
-          <div style="margin-bottom:12px;">${itemsHtml || '<div>No items.</div>'}</div>
-          ${paymentsHtml ? `<div style="font-size:16px; font-weight:700; margin:10px 0 8px 0;">PAYMENTS</div><div>${paymentsHtml}</div>` : ''}
+          <div style="margin-bottom:8px; font-size:15px;"><strong>Status:</strong> ${order.status || ''}</div>
+          <div style="margin-bottom:8px; font-size:15px;"><strong>Created:</strong> ${order.created_at || ''}</div>
+          <div style="margin-bottom:8px; font-size:15px;"><strong>Paid:</strong> ${order.paid_at || '—'}</div>
+          <div style="margin-bottom:12px; font-size:15px;"><strong>User:</strong> ${displayUser}</div>
+          ${deliveryAddressHtml || ''}
+          <div style="font-size:24px; font-weight:800; margin:10px 0 8px 0;">ITEMS</div>
+          <div style="margin-bottom:12px; font-size:17px;">${itemsHtml || '<div>No items.</div>'}</div>
+          ${paymentsHtml ? `<div style="font-size:17px; font-weight:700; margin:10px 0 8px 0;">PAYMENTS</div><div>${paymentsHtml}</div>` : ''}
           ${totalHtml}
         </section>
       `;
@@ -848,6 +910,9 @@ export default function AdminOrders() {
         const isTerminal = TERMINAL.includes(o.status);
         const workflow = workflowTargets(o.status);
         const isSelectedForPrint = selectedPrintIds.includes(o.id);
+        const userName = [o.user_real_name || o.user_nickname, o.user_mobile].filter(Boolean).join(' • ');
+        const fallbackUser = o.user_id != null ? `#${o.user_id}` : 'Unknown user';
+        const displayUser = userName || fallbackUser;
         return (
           <div key={o.id} className="card">
             <div style={{ display: 'flex', alignItems: 'stretch', gap: 10 }}>
@@ -873,7 +938,7 @@ export default function AdminOrders() {
                       <span style={{ color: 'var(--muted)', fontSize: 12 }}>{expandedId === o.id ? '▲' : '▼'}</span>
                     </div>
                   </div>
-                  <div className="muted" style={{ marginTop: 2, lineHeight: 1.3 }}>{o.module} · {fmt(o.total)} · user #{o.user_id}</div>
+                  <div className="muted" style={{ marginTop: 2, lineHeight: 1.3 }}>{o.module} · {fmt(o.total)} · {displayUser}</div>
                 </div>
               </div>
             </div>
@@ -885,6 +950,7 @@ export default function AdminOrders() {
             )}
 
             {!isTerminal && expandedId === o.id && (
+              <>
               <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'nowrap', overflowX: 'auto', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
                 {/* Publish for Bid — OrderPaid espectacles orders */}
                 {o.status === 'OrderPaid' && o.module === 'espectacles' && (
@@ -910,18 +976,37 @@ export default function AdminOrders() {
                   </button>
                 )}
 
-                {/* Normal workflow transitions */}
-                {workflow.map(target => (
-                  <button
-                    key={target}
-                    className="btn secondary"
-                    style={{ minWidth: 140, width: 160, padding: '8px 10px', fontSize: 16, whiteSpace: 'nowrap' }}
-                    disabled={!!busy}
-                    onClick={() => setStatus(o.id, target)}
+                {/* Set State dropdown + apply (always available) */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginRight: 6 }}>Set State:</div>
+                  <select
+                    value={selectedStateById[o.id] ?? o.status}
+                    onChange={e => setSelectedStateById(prev => ({ ...prev, [o.id]: e.target.value }))}
+                    style={{ minWidth: 160, padding: '8px 10px', fontSize: 15 }}
                   >
-                    → {target}
+                    {ALL_STATUSES.map(s => (
+                      <option
+                        key={s}
+                        value={s}
+                        style={s === o.status ? { fontWeight: 800 } : undefined}
+                      >
+                        {s}{s === o.status ? ' (current)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="btn"
+                    style={{ minWidth: 120, padding: '8px 10px', fontSize: 15 }}
+                    disabled={!!busy || (selectedStateById[o.id] ?? o.status) === o.status}
+                    onClick={() => {
+                      const chosen = selectedStateById[o.id] ?? o.status;
+                      if (!chosen || chosen === o.status) return;
+                      setConfirmAction({ orderId: o.id, orderCode: o.order_code, status: chosen, label: `Set State to ${chosen}` });
+                    }}
+                  >
+                    Set
                   </button>
-                ))}
+                </div>
 
                 <button
                   className="btn secondary"
@@ -932,29 +1017,7 @@ export default function AdminOrders() {
                   🖨️ Print
                 </button>
 
-                {/* Cancel — hidden if manufacturer has taken the spectacles order */}
-                {!(o.module === 'espectacles' && o.manufacturer_vendor_id) && (
-                  <button
-                    className="btn secondary"
-                    style={{ minWidth: 140, width: 160, padding: '8px 10px', fontSize: 16, color: '#dc2626', borderColor: '#dc2626', whiteSpace: 'nowrap' }}
-                    disabled={!!busy}
-                    onClick={() => setConfirmAction({ orderId: o.id, orderCode: o.order_code, status: 'Cancelled', label: 'Cancel Order' })}
-                  >
-                    ✕ {t('Form.Cancel')}
-                  </button>
-                )}
-
-                {/* Close (SystemDone) — super_admin only */}
-                {isSuperAdmin && (
-                  <button
-                    className="btn secondary"
-                    style={{ minWidth: 140, width: 160, padding: '8px 10px', fontSize: 16, whiteSpace: 'nowrap' }}
-                    disabled={!!busy}
-                    onClick={() => setConfirmAction({ orderId: o.id, orderCode: o.order_code, status: 'SystemDone', label: 'Close Order' })}
-                    >
-                    ✓ {t('Close')}
-                  </button>
-                )}
+                {/* Cancel and Close buttons moved to action row below */}
 
                 {/* ReadyForDelivery actions: platform or release to partner */}
                 {o.status === 'ReadyForDelivery' && (
@@ -978,7 +1041,32 @@ export default function AdminOrders() {
                   </>
                 )}
               </div>
-            )}
+
+              {/* Separate row for Cancel / Close */}
+              <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                {!(o.module === 'espectacles' && o.manufacturer_vendor_id) && (
+                  <button
+                    className="btn secondary"
+                    style={{ minWidth: 140, padding: '8px 10px', fontSize: 16, color: '#dc2626', borderColor: '#dc2626' }}
+                    disabled={!!busy}
+                    onClick={() => setConfirmAction({ orderId: o.id, orderCode: o.order_code, status: 'Cancelled', label: 'Cancel Order' })}
+                  >
+                    ✕ {t('Form.Cancel')}
+                  </button>
+                )}
+
+                {isSuperAdmin && (
+                  <button
+                    className="btn secondary"
+                    style={{ minWidth: 140, padding: '8px 10px', fontSize: 16 }}
+                    disabled={!!busy}
+                    onClick={() => setConfirmAction({ orderId: o.id, orderCode: o.order_code, status: 'SystemDone', label: 'Close Order' })}
+                  >
+                    ✓ {t('Close')}
+                  </button>
+                )}
+              </div>
+            </>)}
 
             {o.module === 'checkup' && o.status === 'Pending' && expandedId === o.id && (
               <>

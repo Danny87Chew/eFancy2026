@@ -117,10 +117,16 @@ router.post('/checkup', authRequired, (req, res) => {
   res.json({ order: loadOrder(info.lastInsertRowid) });
 });
 
-// POST /api/orders/efreshes  { items, total }
+// POST /api/orders/efreshes  { items, total, delivery_address_id }
 router.post('/efreshes', authRequired, (req, res) => {
-  const { items, total } = req.body || {};
+  const { items, total, delivery_address_id } = req.body || {};
   if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'items_required' });
+
+  let deliveryAddr = null;
+  if (delivery_address_id) {
+    deliveryAddr = db.prepare('SELECT * FROM delivery_addresses WHERE id = ? AND user_id = ?').get(delivery_address_id, req.user.id);
+    if (!deliveryAddr) return res.status(400).json({ error: 'invalid_delivery_address' });
+  }
 
   const validatedItems = items.map((item) => {
     const quantity = Number(item.quantity || 0);
@@ -138,12 +144,25 @@ router.post('/efreshes', authRequired, (req, res) => {
   const code = 'O' + nanoid(10).toUpperCase();
   const finalTotal = Number(total != null ? total : validatedItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0));
   const meta = { kind: 'efreshes', item_count: validatedItems.length };
+  if (deliveryAddr) {
+    meta.delivery_address = {
+      id: deliveryAddr.id,
+      label: deliveryAddr.label,
+      recipient_name: deliveryAddr.recipient_name,
+      recipient_phone: deliveryAddr.recipient_phone,
+      address: deliveryAddr.address,
+      postal_code: deliveryAddr.postal_code,
+      city: deliveryAddr.city,
+      state: deliveryAddr.state,
+      country: deliveryAddr.country,
+    };
+  }
   const info = db
     .prepare(
-      `INSERT INTO orders (order_code, user_id, module, status, total, meta_json)
-       VALUES (?, ?, 'efreshes', 'PendingForPayment', ?, ?)`
+      `INSERT INTO orders (order_code, user_id, module, status, total, meta_json, delivery_address_id)
+       VALUES (?, ?, 'efreshes', 'PendingForPayment', ?, ?, ?)`
     )
-    .run(code, req.user.id, finalTotal, JSON.stringify(meta));
+    .run(code, req.user.id, finalTotal, JSON.stringify(meta), delivery_address_id || null);
 
   const orderId = info.lastInsertRowid;
   const insertItem = db.prepare(
@@ -270,6 +289,19 @@ router.post('/spectacles', authRequired, (req, res) => {
   const finalTotal = (promo_total != null) ? Number(promo_total) : (total != null ? Number(total) : (frameUnitBase || 0));
 
   const meta = { frame_id, frame_name: frame.name, eyesight, lens, pricing: { frame_base_price: frameUnitBase, frame_promo_price: frameUnitPromo, chosen_frame_unit: chosenFrameUnit, base_total: base_total != null ? Number(base_total) : undefined, promo_total: promo_total != null ? Number(promo_total) : undefined } };
+  if (deliveryAddr) {
+    meta.delivery_address = {
+      id: deliveryAddr.id,
+      label: deliveryAddr.label,
+      recipient_name: deliveryAddr.recipient_name,
+      recipient_phone: deliveryAddr.recipient_phone,
+      address: deliveryAddr.address,
+      postal_code: deliveryAddr.postal_code,
+      city: deliveryAddr.city,
+      state: deliveryAddr.state,
+      country: deliveryAddr.country,
+    };
+  }
   if (frame.name_zh) meta.frame_name_zh = frame.name_zh;
   if (frame.brand) meta.frame_brand = frame.brand;
   if (frame.code) meta.frame_code = frame.code;
@@ -377,8 +409,20 @@ router.patch('/:id/spectacles', authRequired, (req, res) => {
       const deliveryAddr = db.prepare('SELECT * FROM delivery_addresses WHERE id = ? AND user_id = ?').get(delivery_address_id, req.user.id);
       if (!deliveryAddr) return res.status(400).json({ error: 'invalid_delivery_address' });
       newDeliveryAddressId = delivery_address_id;
+      meta.delivery_address = {
+        id: deliveryAddr.id,
+        label: deliveryAddr.label,
+        recipient_name: deliveryAddr.recipient_name,
+        recipient_phone: deliveryAddr.recipient_phone,
+        address: deliveryAddr.address,
+        postal_code: deliveryAddr.postal_code,
+        city: deliveryAddr.city,
+        state: deliveryAddr.state,
+        country: deliveryAddr.country,
+      };
     } else {
       newDeliveryAddressId = null;
+      delete meta.delivery_address;
     }
   }
   if (frame_id) {

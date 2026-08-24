@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 const TERMINAL = ['Cancelled', 'SystemDone'];
 
 const WORKFLOW_TRANSITIONS = {
-  Paid:                  ['Finalised'],
+  CheckupPaid:           ['PendingForOrder', 'Finalised'],
   Finalised:             ['PendingForManufacture', 'Processing'],
   PendingForManufacture: ['Processing'],
   Delivered:             ['UserConfirmed', 'SystemDone'],
@@ -491,6 +491,8 @@ function OrderDetails({ order, allOrders, refresh }) {
 }
 
 const ALL_STATUSES = [
+  'PendingForOrder',
+  'Finalised',
   'PendingForPayment',
   'CheckupPaid',
   'OrderPaid',
@@ -506,8 +508,6 @@ const ALL_STATUSES = [
   'BeingDelivered',
   'Delivered',
   'OrderReceived',
-  'PendingForOrder',
-  'Finalised',
   'Completed',
   'Cancelled',
   'SystemDone',
@@ -756,6 +756,17 @@ export default function AdminOrders() {
   const setStatus = async (id, status) => {
     setBusy(id + status);
     try {
+      const order = orders.find(o => o.id === id);
+      const current = order?.status;
+      const allowed = new Set([...(WORKFLOW_TRANSITIONS[current] || []), 'Cancelled', 'SystemDone']);
+      if (current && !allowed.has(status) && status !== current) {
+        const suggestions = (WORKFLOW_TRANSITIONS[current] || []).join(', ') || '(no forward transitions available)';
+        alert(`invalid_transition: ${current} → ${status}\nValid next states: ${suggestions}`);
+        setBusy(null);
+        setConfirmAction(null);
+        return;
+      }
+
       await api(`/api/admin/orders/${id}/status`, { method: 'PATCH', body: { status } });
       load();
     } catch (e) {
@@ -978,7 +989,7 @@ export default function AdminOrders() {
 
                 {/* Set State dropdown + apply (always available) */}
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, marginRight: 6 }}>Set State:</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginRight: 6 }}>Set New State:</div>
                   <select
                     value={selectedStateById[o.id] ?? o.status}
                     onChange={e => setSelectedStateById(prev => ({ ...prev, [o.id]: e.target.value }))}
@@ -996,7 +1007,7 @@ export default function AdminOrders() {
                   </select>
                   <button
                     className="btn"
-                    style={{ minWidth: 120, padding: '8px 10px', fontSize: 15 }}
+                    style={{ minWidth: 88, width: 88, padding: '8px 10px', fontSize: 15, whiteSpace: 'nowrap' }}
                     disabled={!!busy || (selectedStateById[o.id] ?? o.status) === o.status}
                     onClick={() => {
                       const chosen = selectedStateById[o.id] ?? o.status;
@@ -1010,7 +1021,7 @@ export default function AdminOrders() {
 
                 <button
                   className="btn secondary"
-                  style={{ minWidth: 140, width: 160, padding: '8px 10px', fontSize: 16, whiteSpace: 'nowrap' }}
+                  style={{ minWidth: 92, width: 92, padding: '8px 10px', fontSize: 15, whiteSpace: 'nowrap' }}
                   disabled={!!busy}
                   onClick={() => printOrder(o)}
                 >

@@ -34,7 +34,7 @@ const transitions = {
   Pending: ['CheckupPaid', 'Cancelled'],
   UserAccept: ['VendorAccept', 'Cancelled'],
   VendorAccept: ['OrderPaid', 'Cancelled'],
-  CheckupPaid: ['PendingForOrder', 'Cancelled'],
+  CheckupPaid: ['PendingForOrder', 'Finalised', 'Cancelled'],
   OrderPaid: ['PendingForBid', 'Finalised', 'Cancelled', 'PendingService'],
   PendingForBid: ['PendingForManufacture', 'Cancelled'],
   Finalised: ['PendingForManufacture', 'Processing', 'Cancelled'],

@@ -42,4 +42,11 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { signToken, authRequired, requireRole, requireAdmin };
+function requireAdminOrdersAccess(req, res, next) {
+  if (!req.user) return res.status(401).json({ error: 'auth_required' });
+  if (!['admin', 'super_admin', 'staff', 'platform_staff'].includes(req.user.role))
+    return res.status(403).json({ error: 'forbidden' });
+  next();
+}
+
+module.exports = { signToken, authRequired, requireRole, requireAdmin, requireAdminOrdersAccess };

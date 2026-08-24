@@ -21,10 +21,12 @@ const WORKFLOW_TRANSITIONS = {
 };
 
 function OrderDetails({ order, allOrders, refresh }) {
+  const { user } = useAuth();
   const { t } = useTranslation();
   const { fmt } = useCurrency();
   const [commentInput, setCommentInput] = useState('');
   const [replyToId, setReplyToId] = useState(null);
+  const [items, setItems] = useState(order.items || []);
   const [commentBusy, setCommentBusy] = useState(false);
   const [comments, setComments] = useState(order.comments || []);
   const [commentsCollapsed, setCommentsCollapsed] = useState(false);
@@ -33,7 +35,24 @@ function OrderDetails({ order, allOrders, refresh }) {
 
   useEffect(() => {
     setComments(order.comments || []);
-  }, [order.id, order.comments]);
+    setItems(order.items || []);
+  }, [order.id, order.comments, order.items]);
+
+  const canManagePrepared = Boolean(user && ['admin', 'super_admin', 'staff', 'platform_staff'].includes(user.role));
+
+  const togglePrepared = async (itemId, currentPrepared) => {
+    if (!canManagePrepared) return;
+    try {
+      await api(`/api/orders/${order.id}/items/${itemId}/prepared`, {
+        method: 'PATCH',
+        body: { prepared: !currentPrepared },
+      });
+      setItems(prev => prev.map(it => it.id === itemId ? { ...it, prepared: !currentPrepared ? 1 : 0 } : it));
+      if (refresh) refresh();
+    } catch (e) {
+      console.error('Failed to update prepared status', e);
+    }
+  };
 
   useEffect(() => {
     if (!comments || comments.length === 0) return;
@@ -280,7 +299,7 @@ function OrderDetails({ order, allOrders, refresh }) {
           {t('Supplement payment for order')} <strong>{order.meta.parent_order_code}</strong>
         </div>
       )}
-      <div className="muted" style={{ marginBottom: 6 }}>
+      <div className="muted" style={{ marginBottom: 6 }} onClick={(e) => e.stopPropagation()}>
         {t('Created')}: {order.created_at} {order.paid_at ? `· ${t('Paid')}: ${order.paid_at}` : ''}
         {pricing && pricing.base_total != null && pricing.promo_total != null && Number(pricing.base_total) !== Number(pricing.promo_total) && (
           <div style={{ marginTop: 6 }}>
@@ -294,7 +313,7 @@ function OrderDetails({ order, allOrders, refresh }) {
         <div style={{ marginBottom: 6 }}>{t('Shop')}: <strong>{meta.shop_name}</strong></div>
       )}
       {deliveryAddress && (
-        <div style={{ marginBottom: 10 }}>
+        <div style={{ marginBottom: 10 }} onClick={(e) => e.stopPropagation()}>
           <div className="label" style={{ fontSize: 18, fontWeight: 900, color: '#2563eb' }}>{t('Delivery Address')}</div>
           {deliveryAddress.label && <div style={{ marginTop: 6, marginBottom: 6, color: '#333', fontSize: 16, fontWeight: 700 }}>{deliveryAddress.label}</div>}
           <div style={{ marginBottom: 4, fontSize: 16, lineHeight: 1.6, fontWeight: 700 }}>
@@ -376,11 +395,11 @@ function OrderDetails({ order, allOrders, refresh }) {
           ))}
         </div>
       )}
-      {order.items && order.items.length > 0 && (
+      {items && items.length > 0 && (
         <div style={{ marginBottom: 6 }}>
           <div className="label" style={{ fontSize: 18, fontWeight: 800, color: '#2563eb' }}>{t('ITEMS')}</div>
-          <ol style={{ margin: '6px 0 0 0', paddingLeft: 22 }}>
-            {order.items.map((it, index) => {
+          <ol style={{ margin: '6px 0 0 0', paddingLeft: 0, listStyle: 'none' }}>
+            {items.map((it, index) => {
               let meta = null;
               try { meta = it.meta_json ? JSON.parse(it.meta_json) : null; } catch (e) { meta = null; }
               const baseUnit = meta && (meta.frame_base_price != null) ? Number(meta.frame_base_price) : null;
@@ -391,19 +410,45 @@ function OrderDetails({ order, allOrders, refresh }) {
               const itemName = it.kind === 'frame' ? (it.label || 'Frame') : it.kind === 'lens' ? `${t('Lens')}: ${it.label || 'Lens'}` : (it.label || 'Item');
               const qtyLabel = Number(it.qty || 1) > 1 ? ` × ${it.qty}` : '';
               const priceLabel = it.unit_price != null ? ` • ${fmt(Number(it.unit_price) * Number(it.qty || 1))}` : '';
+              const isPrepared = !!Number(it.prepared || 0);
               return (
-                <li key={it.id || `${order.id}-${index}`} style={{ marginBottom: 8, paddingLeft: 2, lineHeight: 1.6, fontSize: 17, fontWeight: 500 }}>
-                  <span>
-                    {itemName}{qtyLabel}
-                    {displayCutting ? <span> • <span style={{ fontWeight: 800 }}>Cutting:</span> <span style={{ fontWeight: 800, fontStyle: 'italic' }}>{t(displayCutting) || displayCutting}</span></span> : null}
-                    {priceLabel}
-                  </span>
-                  {showCrossed ? (
-                    <div style={{ fontSize: 14, marginTop: 2 }}>
-                      <span style={{ textDecoration: 'line-through', color: 'var(--muted)', marginRight: 8 }}>{fmt(baseUnit)}</span>
-                      <span style={{ fontWeight: 700 }}>{fmt(promoUnit)}</span>
-                    </div>
-                  ) : null}
+                <li
+                  key={it.id || `${order.id}-${index}`}
+                  style={{
+                    marginBottom: 8,
+                    lineHeight: 1.6,
+                    fontSize: 17,
+                    fontWeight: 500,
+                    display: 'grid',
+                    gridTemplateColumns: 'auto auto minmax(0, 1fr)',
+                    columnGap: 6,
+                    alignItems: 'flex-start',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span style={{ minWidth: 18, textAlign: 'right', color: 'var(--muted)', marginTop: 2, lineHeight: 1.3 }}>{index + 1}.</span>
+                  {canManagePrepared && (
+                    <input
+                      type="checkbox"
+                      checked={isPrepared}
+                      onChange={() => togglePrepared(it.id, isPrepared)}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ margin: '4px 0 0 0', flexShrink: 0, width: 22, height: 22 }}
+                    />
+                  )}
+                  <div style={{ minWidth: 0 }}>
+                    <span>
+                      {itemName}{qtyLabel}
+                      {displayCutting ? <span> • <span style={{ fontWeight: 800 }}>Cutting:</span> <span style={{ fontWeight: 800, fontStyle: 'italic' }}>{t(displayCutting) || displayCutting}</span></span> : null}
+                      {priceLabel}
+                    </span>
+                    {showCrossed ? (
+                      <div style={{ fontSize: 14, marginTop: 2 }}>
+                        <span style={{ textDecoration: 'line-through', color: 'var(--muted)', marginRight: 8 }}>{fmt(baseUnit)}</span>
+                        <span style={{ fontWeight: 700 }}>{fmt(promoUnit)}</span>
+                      </div>
+                    ) : null}
+                  </div>
                 </li>
               );
             })}
@@ -516,6 +561,7 @@ const SPECIAL_FILTERS = [{ value: '_opening_comments', label: 'Openning Comment(
 
 export default function AdminOrders() {
   const { user } = useAuth();
+  const isStaff = !!user && ['staff', 'platform_staff'].includes(user.role);
   const { fmt } = useCurrency();
   const { t } = useTranslation();
   const isSuperAdmin = user?.role === 'super_admin';
@@ -560,7 +606,9 @@ export default function AdminOrders() {
       const cutting = item.cutting || meta?.cutting || null;
       const displayCutting = cutting && cutting !== 'Standard' ? cutting : null;
       const itemName = item.kind === 'frame' ? (item.label || 'Frame') : item.kind === 'lens' ? `Lens: ${item.label || 'Lens'}` : (item.label || 'Item');
-      const baseText = `${index + 1}. ${itemName}${qty > 1 ? ` × ${qty}` : ''}`;
+      const prepared = Number(item.prepared || 0) === 1;
+      const checkbox = prepared ? '☑' : '☐';
+      const baseText = `${index + 1}. <span style="font-size:1.5em; line-height:1; vertical-align:middle;">${checkbox}</span> ${itemName}${qty > 1 ? ` × ${qty}` : ''}`;
       const priceText = vendorOnly || item.unit_price == null ? '' : ` • ${formatPrintMoney(Number(item.unit_price) * qty)}`;
       const cuttingText = displayCutting ? ` • <span style="font-weight:700;">Cutting:</span> <span style="font-weight:700; font-style:italic;">${displayCutting}</span>` : '';
       return `${baseText}${cuttingText}${priceText}`;
@@ -866,9 +914,11 @@ export default function AdminOrders() {
 
       {/* Toolbar */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
-        <button className="btn secondary" style={{ width: 'auto' }} onClick={finalise}>
-          {t('Run auto-finalise (12h+)')}
-        </button>
+        {!isStaff && (
+          <button className="btn secondary" style={{ width: 'auto' }} onClick={finalise}>
+            {t('Run auto-finalise (12h+)')}
+          </button>
+        )}
         <button className="btn" style={{ width: 'auto', whiteSpace: 'nowrap' }} onClick={selectAllPrintOrders}>
           Select All
         </button>
@@ -955,7 +1005,7 @@ export default function AdminOrders() {
             </div>
 
             {expandedId === o.id && (
-              <div style={{ cursor: 'pointer' }} onClick={() => toggleExpand(o.id)}>
+              <div style={{ cursor: 'default' }} onClick={(e) => e.stopPropagation()}>
                 <OrderDetails order={o} allOrders={orders} />
               </div>
             )}
@@ -964,7 +1014,7 @@ export default function AdminOrders() {
               <>
               <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'nowrap', overflowX: 'auto', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
                 {/* Publish for Bid — OrderPaid espectacles orders */}
-                {o.status === 'OrderPaid' && o.module === 'espectacles' && (
+                {!isStaff && o.status === 'OrderPaid' && o.module === 'espectacles' && (
                     <button
                     className="btn"
                     style={{ minWidth: 140, width: 160, padding: '8px 10px', fontSize: 16, background: '#2563eb', whiteSpace: 'nowrap' }}
@@ -976,7 +1026,7 @@ export default function AdminOrders() {
                 )}
 
                 {/* Edit Offer — PendingForBid espectacles orders */}
-                {o.status === 'PendingForBid' && o.module === 'espectacles' && (
+                {!isStaff && o.status === 'PendingForBid' && o.module === 'espectacles' && (
                     <button
                     className="btn secondary"
                     style={{ minWidth: 140, width: 160, padding: '8px 10px', fontSize: 16, whiteSpace: 'nowrap' }}

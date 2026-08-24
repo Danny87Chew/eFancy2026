@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const db = require('../db');
 const { nanoid } = require('nanoid');
-const { authRequired, requireAdmin, requireRole } = require('../auth');
+const { authRequired, requireAdmin, requireAdminOrdersAccess, requireRole } = require('../auth');
 const { ALL_ROLES, VENDOR_ROLES } = require('../roles');
 const { getConfig, setConfig, allConfig } = require('../configStore');
 const { canTransition } = require('../orderStates');
@@ -485,7 +485,7 @@ router.patch('/users/:id', authRequired, requireRole('super_admin'), (req, res) 
 });
 
 // GET /api/admin/orders
-router.get('/orders', authRequired, requireAdmin, (req, res) => {
+router.get('/orders', authRequired, requireAdminOrdersAccess, (req, res) => {
   const rows = db.prepare(
     `SELECT o.*,
        u.nickname AS user_nickname,
@@ -515,10 +515,7 @@ router.get('/orders', authRequired, requireAdmin, (req, res) => {
 const TERMINAL_STATES = ['Cancelled', 'SystemDone'];
 const ADMIN_FORCE_TARGETS = ['Cancelled', 'SystemDone'];
 
-router.patch('/orders/:id/status', authRequired, (req, res) => {
-  // allow admin, super_admin, or platform staff to change statuses via this endpoint
-  if (!req.user || !['admin', 'super_admin', 'platform_staff'].includes(req.user.role))
-    return res.status(403).json({ error: 'forbidden' });
+router.patch('/orders/:id/status', authRequired, requireAdminOrdersAccess, (req, res) => {
 
   const { status, vendor_price } = req.body || {};
   if (!status) return res.status(400).json({ error: 'status_required' });
@@ -556,9 +553,7 @@ router.patch('/orders/:id/status', authRequired, (req, res) => {
 
 // POST /api/admin/orders/:id/release-for-delivery
 // Notify shipping partner and set order to PendingForDelivery
-router.post('/orders/:id/release-for-delivery', authRequired, (req, res) => {
-  if (!req.user || !['admin', 'super_admin', 'platform_staff'].includes(req.user.role))
-    return res.status(403).json({ error: 'forbidden' });
+router.post('/orders/:id/release-for-delivery', authRequired, requireAdminOrdersAccess, (req, res) => {
 
   const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   if (!o) return res.status(404).json({ error: 'not_found' });

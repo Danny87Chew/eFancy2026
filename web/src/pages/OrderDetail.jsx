@@ -217,7 +217,8 @@ export default function OrderDetail() {
     nav('/espectacles/ordering');
   };
 
-  const canComment = Boolean(user && order && (user.id === order.user_id || ['admin', 'super_admin'].includes(user.role)));
+  const canManagePrepared = Boolean(user && ['admin', 'super_admin', 'staff', 'platform_staff'].includes(user.role));
+  const canComment = Boolean(user && order && (user.id === order.user_id || ['admin', 'super_admin', 'staff', 'platform_staff'].includes(user.role)));
   const canReply = canComment;
   const showCommentComposer = !loading && canComment;
 
@@ -245,6 +246,22 @@ export default function OrderDetail() {
     if (!canReply) return;
     setReplyToId(commentId);
     setCommentInput('');
+  };
+
+  const handleItemPreparedToggle = async (itemId, currentPrepared) => {
+    if (!canManagePrepared || !order) return;
+    try {
+      await api(`/api/orders/${order.id}/items/${itemId}/prepared`, {
+        method: 'PATCH',
+        body: { prepared: !currentPrepared },
+      });
+      setOrder(prev => ({
+        ...prev,
+        items: (prev.items || []).map(it => it.id === itemId ? { ...it, prepared: !currentPrepared ? 1 : 0 } : it),
+      }));
+    } catch (e) {
+      setError(e?.data?.error || e.message || 'Unable to update prepared status');
+    }
   };
 
   const handleSubmitComment = (event) => {
@@ -563,10 +580,31 @@ export default function OrderDetail() {
             const baseUnit = meta && (meta.frame_base_price != null) ? Number(meta.frame_base_price) : null;
             const promoUnit = meta && (meta.frame_promo_price != null) ? Number(meta.frame_promo_price) : null;
             const showCrossed = baseUnit != null && promoUnit != null && promoUnit > 0 && promoUnit < baseUnit;
+            const isPrepared = !!Number(it.prepared || 0);
             return (
-              <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div
+                key={it.id}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: canManagePrepared ? 'auto minmax(0, 1fr) auto' : 'minmax(0, 1fr) auto',
+                  columnGap: 8,
+                  alignItems: 'flex-start',
+                  marginTop: 8,
+                  paddingLeft: 0,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {canManagePrepared && (
+                  <input
+                    type="checkbox"
+                    checked={isPrepared}
+                    onChange={() => handleItemPreparedToggle(it.id, isPrepared)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ margin: '4px 0 0 0', flexShrink: 0, width: 22, height: 22 }}
+                  />
+                )}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <div>{it.label} × {it.qty}</div>
                     {showCrossed && <div style={{ background: '#eef2ff', color: '#3730a3', padding: '2px 8px', borderRadius: 12, fontSize: 12 }}>{t('Promotion')}</div>}
                   </div>
@@ -578,7 +616,7 @@ export default function OrderDetail() {
                   ) : null}
                   <CuttingInfo cutting={meta?.cutting || null} />
                 </div>
-                <div style={{ fontWeight: 600 }}>
+                <div style={{ fontWeight: 600, whiteSpace: 'nowrap', marginTop: 2 }}>
                   {showCrossed ? fmt(promoUnit * it.qty) : fmt(it.unit_price * it.qty)}
                 </div>
               </div>

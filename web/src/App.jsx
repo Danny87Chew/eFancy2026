@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from './state/AuthContext.jsx';
-import { VENDOR_ROLES, ROLE_LABELS } from './roles.js';
+import { VENDOR_ROLES, ROLE_LABELS, STAFF_ROLES } from './roles.js';
 import { useTranslation } from 'react-i18next';
 import Login from './pages/Login.jsx';
 import Home from './pages/Home.jsx';
@@ -31,8 +31,8 @@ import LanguageSelector from './components/LanguageSelector.jsx';
 
 function HomeRoute() {
   const { user, vendorContext } = useAuth();
-  const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
-  if (isAdmin) return <Navigate to="/admin" replace />;
+  const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin' || STAFF_ROLES.includes(user.role));
+  if (isAdmin) return <Navigate to={STAFF_ROLES.includes(user.role) ? '/admin/orders' : '/admin'} replace />;
   const vendorRole = (user && VENDOR_ROLES.includes(user.role)) ? user.role : vendorContext?.role;
   if (vendorRole === 'spectacle_checkup_vendor') return <Navigate to="/vendor/checkup" replace />;
   if (vendorRole === 'spectacle_producer_vendor') return <Navigate to="/vendor/manufacture" replace />;
@@ -121,7 +121,7 @@ function BottomBar() {
   const { user, vendorContext, logout } = useAuth();
   const { t } = useTranslation();
   const [cartCount, setCartCount] = useState(getCartCount());
-  const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
+  const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin' || STAFF_ROLES.includes(user.role));
   const isConsumer = user && user.role === 'consumer';
   const isCheckupVendor = user && (
     user.role === 'spectacle_checkup_vendor' ||
@@ -178,7 +178,7 @@ function BottomBar() {
         </NavLink>
       )}
       {isAdmin && (
-        <NavLink to="/admin" className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
+        <NavLink to={STAFF_ROLES.includes(user?.role) ? '/admin/orders' : '/admin'} className={({ isActive }) => 'bot-tab' + (isActive ? ' active' : '')}>
           <span className="icon">🛠️</span>{t('Administration')}
         </NavLink>
       )}
@@ -227,7 +227,8 @@ export default function App() {
   const { t } = useTranslation();
   const loc = useLocation();
   const isLogin = loc.pathname === '/login';
-  const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
+  const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin' || STAFF_ROLES.includes(user.role));
+  const isStaff = user && STAFF_ROLES.includes(user.role);
   const isVendorLike = !!(user && (
     VENDOR_ROLES.includes(user.role) ||
     (vendorContext?.role && VENDOR_ROLES.includes(vendorContext.role))
@@ -244,7 +245,7 @@ export default function App() {
   // Build display text: "User Type - User Name" for vendors/admins, or just name
   let userDisplayInfo = '';
   if (isAdmin) {
-    userDisplayInfo = adminDisplayName ? `${userTypeLabel} - ${adminDisplayName}` : userTypeLabel || t('Admin User');
+    userDisplayInfo = adminDisplayName ? `${userTypeLabel} - ${adminDisplayName}` : userTypeLabel || (isStaff ? t('Staff User') : t('Admin User'));
   } else if (isVendorLike && vendorDisplayName) {
     userDisplayInfo = userTypeLabel ? `${userTypeLabel} - ${vendorDisplayName}` : vendorDisplayName;
   }

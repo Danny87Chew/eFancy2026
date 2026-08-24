@@ -49,11 +49,28 @@ router.get('/mine', authRequired, (req, res) => {
 });
 
 // POST /api/orders/:id/comments
+router.patch('/:id/items/:itemId/prepared', authRequired, (req, res) => {
+  if (!req.user || !['admin', 'super_admin', 'staff', 'platform_staff'].includes(req.user.role))
+    return res.status(403).json({ error: 'forbidden' });
+
+  const { prepared } = req.body || {};
+  const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!o) return res.status(404).json({ error: 'not_found' });
+
+  const item = db.prepare('SELECT * FROM order_items WHERE id = ? AND order_id = ?').get(req.params.itemId, o.id);
+  if (!item) return res.status(404).json({ error: 'item_not_found' });
+
+  const nextPrepared = prepared ? 1 : 0;
+  db.prepare('UPDATE order_items SET prepared = ? WHERE id = ?').run(nextPrepared, item.id);
+  const updated = db.prepare('SELECT * FROM order_items WHERE id = ?').get(item.id);
+  res.json({ ok: true, item: updated });
+});
+
 router.post('/:id/comments', authRequired, (req, res) => {
   const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
   if (!o) return res.status(404).json({ error: 'not_found' });
   const isOwner = o.user_id === req.user.id;
-  const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
+  const isAdmin = ['admin', 'super_admin', 'staff', 'platform_staff'].includes(req.user.role);
   if (!isOwner && !isAdmin) return res.status(403).json({ error: 'forbidden' });
 
   const content = String(req.body?.content || '').trim();
@@ -87,7 +104,7 @@ router.post('/:id/comments', authRequired, (req, res) => {
 router.get('/:id', authRequired, (req, res) => {
   const o = loadOrder(req.params.id);
   if (!o) return res.status(404).json({ error: 'not_found' });
-  if (o.user_id !== req.user.id && !['admin', 'super_admin'].includes(req.user.role))
+  if (o.user_id !== req.user.id && !['admin', 'super_admin', 'staff', 'platform_staff'].includes(req.user.role))
     return res.status(403).json({ error: 'forbidden' });
   o.modifiable = isModifiable(o);
   res.json({ order: o });

@@ -12,6 +12,7 @@ const PUBLIC_ROLES = [
 ];
 
 const ADMIN_ROLES = ['admin', 'super_admin'];
+const STAFF_ROLES = ['staff', 'platform_staff'];
 
 const VENDOR_ROLES = [
   'service_vendor',
@@ -24,7 +25,7 @@ const VENDOR_ROLES = [
   'other_vendor',
 ];
 
-const ALL_ROLES = [...PUBLIC_ROLES, ...ADMIN_ROLES];
+const ALL_ROLES = [...PUBLIC_ROLES, ...ADMIN_ROLES, ...STAFF_ROLES];
 
 const ROLE_LABELS = {
   consumer: 'Consumer User',
@@ -38,6 +39,8 @@ const ROLE_LABELS = {
   other_vendor: 'Other Vendor',
   admin: 'Admin',
   super_admin: 'Super Admin',
+  staff: 'Staff',
+  platform_staff: 'Platform Staff',
 };
 
-module.exports = { PUBLIC_ROLES, ADMIN_ROLES, VENDOR_ROLES, ALL_ROLES, ROLE_LABELS };
+module.exports = { PUBLIC_ROLES, ADMIN_ROLES, STAFF_ROLES, VENDOR_ROLES, ALL_ROLES, ROLE_LABELS };

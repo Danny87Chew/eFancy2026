@@ -12,10 +12,13 @@ import AdminGoodsCategories from './AdminGoodsCategories.jsx';
 import AdminGoodsCategoryHome from './AdminGoodsCategoryHome.jsx';
 import AdminGoodsSubCategories from './AdminGoodsSubCategories.jsx';
 import { useAuth } from '../../state/AuthContext.jsx';
+import { STAFF_ROLES } from '../../roles.js';
 
 export default function Admin() {
   const { user } = useAuth();
   const isSuper = user.role === 'super_admin';
+  const isStaff = STAFF_ROLES.includes(user?.role);
+
   const { t } = useTranslation();
   const tabsRef = useRef(null);
   const location = useLocation();
@@ -40,25 +43,25 @@ export default function Admin() {
       <h1 className="h1">{t('Administration')}</h1>
       {!location.pathname.startsWith('/admin/goods-categories') && (
         <div ref={tabsRef} style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 12 }}>
-          <NavLink to="frames" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Frames') || 'Frames'}</NavLink>
-          <NavLink to="vendors" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Vendors') || 'Vendors'}</NavLink>
-          <NavLink to="lens-brands" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Lens brands') || 'Lens brands'}</NavLink>
+          {!isStaff && <NavLink to="frames" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Frames') || 'Frames'}</NavLink>}
+          {!isStaff && <NavLink to="vendors" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Vendors') || 'Vendors'}</NavLink>}
+          {!isStaff && <NavLink to="lens-brands" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Lens brands') || 'Lens brands'}</NavLink>}
           <NavLink to="orders" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Orders')}</NavLink>
           {isSuper && <NavLink to="config" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Config')}</NavLink>}
           {isSuper && <NavLink to="users" onClick={(e) => centerTab(e.currentTarget)} className={({ isActive }) => 'tab' + (isActive ? ' active' : '')}>{t('Users')}</NavLink>}
         </div>
       )}
       <Routes>
-        <Route index element={<Navigate to="frames" replace />} />
-        <Route path="frames" element={<AdminFrames />} />
-        <Route path="goods-categories" element={<AdminGoodsCategoryHome />} />
-        <Route path="goods-categories/main" element={<AdminGoodsCategories />} />
-        <Route path="goods-categories/sub" element={<AdminGoodsSubCategories />} />
-        <Route path="vendors" element={<AdminVendors />} />
-        <Route path="vendors/add" element={<AdminVendorCreate />} />
-        <Route path="vendors/:id/edit" element={<AdminVendorCreate />} />
-        <Route path="shops" element={<Navigate to="/admin/vendors" replace />} />
-        <Route path="lens-brands" element={<AdminLensBrands />} />
+        <Route index element={<Navigate to={isStaff ? 'orders' : 'frames'} replace />} />
+        {!isStaff && <Route path="frames" element={<AdminFrames />} />}
+        {!isStaff && <Route path="goods-categories" element={<AdminGoodsCategoryHome />} />}
+        {!isStaff && <Route path="goods-categories/main" element={<AdminGoodsCategories />} />}
+        {!isStaff && <Route path="goods-categories/sub" element={<AdminGoodsSubCategories />} />}
+        {!isStaff && <Route path="vendors" element={<AdminVendors />} />}
+        {!isStaff && <Route path="vendors/add" element={<AdminVendorCreate />} />}
+        {!isStaff && <Route path="vendors/:id/edit" element={<AdminVendorCreate />} />}
+        {!isStaff && <Route path="shops" element={<Navigate to="/admin/vendors" replace />} />}
+        {!isStaff && <Route path="lens-brands" element={<AdminLensBrands />} />}
         <Route path="orders" element={<AdminOrders />} />
         {isSuper && <Route path="config" element={<AdminConfig />} />}
         {isSuper && <Route path="users" element={<AdminUsers />} />}

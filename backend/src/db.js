@@ -325,6 +325,11 @@ function init() {
   CREATE INDEX IF NOT EXISTS idx_delivery_addresses_user ON delivery_addresses(user_id);
   `);
 
+  const orderItemCols = db.prepare(`PRAGMA table_info(order_items)`).all().map(c => c.name);
+  if (!orderItemCols.includes('prepared')) {
+    db.prepare('ALTER TABLE order_items ADD COLUMN prepared INTEGER NOT NULL DEFAULT 0').run();
+  }
+
   // Add localized name column to partner_shops
   const shopCols = db.prepare(`PRAGMA table_info(partner_shops)`).all().map(c => c.name);
   if (!shopCols.includes('name_zh')) {

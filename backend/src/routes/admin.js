@@ -2,9 +2,10 @@ const router = require('express').Router();
 const db = require('../db');
 const { nanoid } = require('nanoid');
 const { authRequired, requireAdmin, requireAdminOrdersAccess, requireRole } = require('../auth');
-const { ALL_ROLES, VENDOR_ROLES } = require('../roles');
+const { ALL_ROLES, INTERNAL_ROLES, VENDOR_ROLES } = require('../roles');
 const { getConfig, setConfig, allConfig } = require('../configStore');
 const { canTransition } = require('../orderStates');
+const { redactOrderForRole } = require('../orderVisibility');
 const config = require('../config');
 const http = require('http');
 const https = require('https');
@@ -116,7 +117,7 @@ router.get('/users', authRequired, requireAdmin, (req, res) => {
        AND role NOT IN ('admin', 'super_admin')`
   ).run();
 
-  const users = db.prepare('SELECT id, user_code, mobile, nickname, real_name, role, created_at, updated_at FROM users ORDER BY id DESC').all();
+  const users = db.prepare('SELECT id, user_code, mobile, nickname, real_name, role, home_address, home_phone, next_kin_name, next_kin_phone, department, created_at, updated_at FROM users ORDER BY id DESC').all();
   const staffRows = db.prepare(
     `SELECT
        vs.vendor_user_id,
@@ -190,6 +191,7 @@ router.get('/users', authRequired, requireAdmin, (req, res) => {
 router.post('/users', authRequired, requireAdmin, (req, res) => {
   const {
     mobile, role, nickname, real_name,
+    home_address, home_phone, next_kin_name, next_kin_phone, department,
     merchant_name, contact_number, office_number, mobile_number,
     address, postcode, road, town, district, mrt, business_hours, business_licence,
     country,
@@ -201,10 +203,13 @@ router.post('/users', authRequired, requireAdmin, (req, res) => {
   if (!parsedMobile) return res.status(400).json({ error: 'mobile_required' });
   if (!isValidMobile(parsedMobile)) return res.status(400).json({ error: 'invalid_mobile' });
   if (!parsedRole) return res.status(400).json({ error: 'role_required' });
-  if (!VENDOR_ROLES.includes(parsedRole)) return res.status(400).json({ error: 'invalid_vendor_role' });
+  const isVendorRole = VENDOR_ROLES.includes(parsedRole);
+  const isInternalRole = INTERNAL_ROLES.includes(parsedRole);
+  if (!isVendorRole && !isInternalRole) return res.status(400).json({ error: 'invalid_role' });
 
   let normalizedStaffs = [];
   if (staffs !== undefined) {
+    if (!isVendorRole) return res.status(400).json({ error: 'invalid_vendor_user' });
     if (!Array.isArray(staffs)) return res.status(400).json({ error: 'invalid_staffs' });
     try {
       normalizedStaffs = staffs.map((s) => {
@@ -236,7 +241,7 @@ router.post('/users', authRequired, requireAdmin, (req, res) => {
   if (existing) return res.status(409).json({ error: 'mobile_taken' });
 
   const code = 'U' + nanoid(8).toUpperCase();
-  const insertUser = db.prepare('INSERT INTO users (user_code, mobile, nickname, real_name, role) VALUES (?, ?, ?, ?, ?)');
+  const insertUser = db.prepare('INSERT INTO users (user_code, mobile, nickname, real_name, role, home_address, home_phone, next_kin_name, next_kin_phone, department) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
   const insertProfile = db.prepare(
     `INSERT INTO vendor_profiles
        (user_id, merchant_name, contact_number, office_number, mobile_number, address, post_code, road, town, district, mrt, business_hours, business_licence, country)
@@ -250,41 +255,56 @@ router.post('/users', authRequired, requireAdmin, (req, res) => {
   );
 
   const tx = db.transaction(() => {
+    const internalDetails = INTERNAL_ROLES.includes(parsedRole) ? {
+      home_address: String(home_address || '').trim() || null,
+      home_phone: String(home_phone || '').trim() || null,
+      next_kin_name: String(next_kin_name || '').trim() || null,
+      next_kin_phone: String(next_kin_phone || '').trim() || null,
+      department: String(department || '').trim() || null,
+    } : {};
     const info = insertUser.run(
       code,
       parsedMobile,
       nickname ? String(nickname).trim() : null,
       real_name ? String(real_name).trim() : null,
       parsedRole,
+      internalDetails.home_address,
+      internalDetails.home_phone,
+      internalDetails.next_kin_name,
+      internalDetails.next_kin_phone,
+      internalDetails.department,
     );
     const userId = info.lastInsertRowid;
-    insertProfile.run(
-      userId,
-      String(merchant_name || nickname || real_name || code).trim(),
-      String(contact_number || parsedMobile).trim(),
-      office_number ? String(office_number).trim() : null,
-      mobile_number ? String(mobile_number).trim() : null,
-      address ? String(address).trim() : null,
-      postcode ? String(postcode).trim() : null,
-      road ? String(road).trim() : null,
-      town ? String(town).trim() : null,
-      district ? String(district).trim() : null,
-      mrt ? String(mrt).trim() : null,
-      business_hours ? String(business_hours).trim() : null,
-      business_licence ? String(business_licence).trim() : null,
-      country === 'CN' ? 'CN' : 'SG',
-    );
 
-    for (const s of normalizedStaffs) {
-      let staffUser = findUserByMobile.get(s.staff_mobile);
-      if (!staffUser) {
-        const userCode = 'U' + nanoid(8).toUpperCase();
-        const inserted = createUser.run(userCode, s.staff_mobile, parsedRole);
-        staffUser = { id: inserted.lastInsertRowid };
-      } else {
-        setUserRole.run(parsedRole, staffUser.id);
+    if (isVendorRole) {
+      insertProfile.run(
+        userId,
+        String(merchant_name || nickname || real_name || code).trim(),
+        String(contact_number || parsedMobile).trim(),
+        office_number ? String(office_number).trim() : null,
+        mobile_number ? String(mobile_number).trim() : null,
+        address ? String(address).trim() : null,
+        postcode ? String(postcode).trim() : null,
+        road ? String(road).trim() : null,
+        town ? String(town).trim() : null,
+        district ? String(district).trim() : null,
+        mrt ? String(mrt).trim() : null,
+        business_hours ? String(business_hours).trim() : null,
+        business_licence ? String(business_licence).trim() : null,
+        country === 'CN' ? 'CN' : 'SG',
+      );
+
+      for (const s of normalizedStaffs) {
+        let staffUser = findUserByMobile.get(s.staff_mobile);
+        if (!staffUser) {
+          const userCode = 'U' + nanoid(8).toUpperCase();
+          const inserted = createUser.run(userCode, s.staff_mobile, parsedRole);
+          staffUser = { id: inserted.lastInsertRowid };
+        } else {
+          setUserRole.run(parsedRole, staffUser.id);
+        }
+        insStaff.run(userId, s.staff_mobile, staffUser.id, s.is_admin, s.name);
       }
-      insStaff.run(userId, s.staff_mobile, staffUser.id, s.is_admin, s.name);
     }
 
     return userId;
@@ -303,7 +323,9 @@ router.post('/users', authRequired, requireAdmin, (req, res) => {
 // PATCH /api/admin/users/:id  { role, mobile, nickname, real_name, merchant_name?, contact_number?, office_number?, mobile_number?, address?, postcode?, road?, town?, district?, mrt?, business_hours?, business_licence?, staffs? } (super_admin)
 router.patch('/users/:id', authRequired, requireRole('super_admin'), (req, res) => {
   const {
-    role, mobile, nickname, real_name, staffs,
+    role, mobile, nickname, real_name,
+    home_address, home_phone, next_kin_name, next_kin_phone, department,
+    staffs,
     merchant_name, contact_number, office_number, mobile_number, address, postcode, road, town, district, mrt, business_hours, business_licence,
     country,
   } = req.body || {};
@@ -328,6 +350,31 @@ router.patch('/users/:id', authRequired, requireRole('super_admin'), (req, res) 
       `INSERT INTO admin_audit_logs (actor_user_id, action, target, detail_json) VALUES (?, 'user.real_name.update', ?, ?)`
     ).run(req.user.id, String(req.params.id), JSON.stringify({ real_name: v }));
     changed = true;
+  }
+
+  if (home_address !== undefined || home_phone !== undefined || next_kin_name !== undefined || next_kin_phone !== undefined || department !== undefined) {
+    const next = {
+      home_address: home_address === undefined ? undefined : (home_address === null ? null : String(home_address).trim() || null),
+      home_phone: home_phone === undefined ? undefined : (home_phone === null ? null : String(home_phone).trim() || null),
+      next_kin_name: next_kin_name === undefined ? undefined : (next_kin_name === null ? null : String(next_kin_name).trim() || null),
+      next_kin_phone: next_kin_phone === undefined ? undefined : (next_kin_phone === null ? null : String(next_kin_phone).trim() || null),
+      department: department === undefined ? undefined : (department === null ? null : String(department).trim() || null),
+    };
+    const updates = [];
+    const values = [];
+    for (const [field, value] of Object.entries(next)) {
+      if (value !== undefined) {
+        updates.push(`${field} = ?`);
+        values.push(value);
+      }
+    }
+    if (updates.length) {
+      db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...values, req.params.id);
+      db.prepare(
+        `INSERT INTO admin_audit_logs (actor_user_id, action, target, detail_json) VALUES (?, 'user.internal_profile.update', ?, ?)`
+      ).run(req.user.id, String(req.params.id), JSON.stringify(next));
+      changed = true;
+    }
   }
 
   if (role !== undefined) {
@@ -507,7 +554,9 @@ router.get('/orders', authRequired, requireAdminOrdersAccess, (req, res) => {
     }
     r.has_opening_comments = Number(r.comments_count || 0) > 0;
   }
-  res.json({ orders: rows });
+
+  const visibleRows = rows.map((row) => redactOrderForRole(row, req.user.role));
+  res.json({ orders: visibleRows });
 });
 
 // PATCH /api/admin/orders/:id/status  { status } (admin+)

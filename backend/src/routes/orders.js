@@ -4,6 +4,7 @@ const db = require('../db');
 const { authRequired, requireAdmin } = require('../auth');
 const { getConfig } = require('../configStore');
 const { canTransition } = require('../orderStates');
+const { shouldHideOrderPrices, redactOrderForRole } = require('../orderVisibility');
 
 function loadOrderComments(orderId) {
   return db.prepare(`
@@ -107,7 +108,8 @@ router.get('/:id', authRequired, (req, res) => {
   if (o.user_id !== req.user.id && !['admin', 'super_admin', 'staff', 'platform_staff'].includes(req.user.role))
     return res.status(403).json({ error: 'forbidden' });
   o.modifiable = isModifiable(o);
-  res.json({ order: o });
+  const visibleOrder = redactOrderForRole(o, req.user.role);
+  res.json({ order: visibleOrder });
 });
 
 // POST /api/orders/checkup  { shop_id }

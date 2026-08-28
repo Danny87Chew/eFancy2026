@@ -12,6 +12,7 @@ export const PUBLIC_ROLES = [
 
 export const ADMIN_ROLES = ['admin', 'super_admin'];
 export const STAFF_ROLES = ['staff', 'platform_staff'];
+export const INTERNAL_ROLES = ['admin', 'staff', 'super_admin', 'platform_staff'];
 
 export const VENDOR_ROLES = [
   'service_vendor',

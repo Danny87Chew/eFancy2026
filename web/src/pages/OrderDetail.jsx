@@ -30,6 +30,8 @@ export default function OrderDetail() {
   const [savingAddress, setSavingAddress] = useState(false);
   const nav = useNavigate();
   const { user, loading } = useAuth();
+  const isStaff = !!user && ['staff', 'platform_staff'].includes(user.role);
+  const canViewOrderPrices = !isStaff;
   const { setDraft } = useDraft();
   const { fmt } = useCurrency();
   const { t } = useTranslation();
@@ -408,6 +410,9 @@ export default function OrderDetail() {
             }
           }
           if (!pricing && fetchedPricing) pricing = fetchedPricing;
+          if (!canViewOrderPrices) {
+            return <div>{t('Total Paid')}: —</div>;
+          }
           if (pricing && pricing.base_total != null && pricing.promo_total != null && Number(pricing.base_total) !== Number(pricing.promo_total)) {
             return (
               <div>
@@ -608,7 +613,7 @@ export default function OrderDetail() {
                     <div>{it.label} × {it.qty}</div>
                     {showCrossed && <div style={{ background: '#eef2ff', color: '#3730a3', padding: '2px 8px', borderRadius: 12, fontSize: 12 }}>{t('Promotion')}</div>}
                   </div>
-                  {showCrossed ? (
+                  {canViewOrderPrices && showCrossed ? (
                     <div style={{ fontSize: 13, marginTop: 4 }}>
                       <span style={{ textDecoration: 'line-through', color: 'var(--muted)', marginRight: 8 }}>{fmt(baseUnit)}</span>
                       <span style={{ fontWeight: 700 }}>{fmt(promoUnit)}</span>
@@ -617,7 +622,7 @@ export default function OrderDetail() {
                   <CuttingInfo cutting={meta?.cutting || null} />
                 </div>
                 <div style={{ fontWeight: 600, whiteSpace: 'nowrap', marginTop: 2 }}>
-                  {showCrossed ? fmt(promoUnit * it.qty) : fmt(it.unit_price * it.qty)}
+                  {canViewOrderPrices ? (showCrossed ? fmt(promoUnit * it.qty) : fmt(it.unit_price * it.qty)) : '—'}
                 </div>
               </div>
             );

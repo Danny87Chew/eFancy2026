@@ -14,6 +14,11 @@ function init() {
     nickname TEXT,
     real_name TEXT,
     role TEXT NOT NULL DEFAULT 'consumer',  -- consumer|service_vendor|spectacle_checkup_vendor|spectacle_producer_vendor|spectacle_lens_vendor|spectacle_frame_vendor|grocery_vendor|freshfood_vendor|other_vendor|admin|super_admin
+    home_address TEXT,
+    home_phone TEXT,
+    next_kin_name TEXT,
+    next_kin_phone TEXT,
+    department TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -52,6 +57,13 @@ function init() {
   );
   `);
   
+  const userCols = db.prepare(`PRAGMA table_info(users)`).all().map(c => c.name);
+  for (const col of ['home_address', 'home_phone', 'next_kin_name', 'next_kin_phone', 'department']) {
+    if (!userCols.includes(col)) {
+      db.prepare(`ALTER TABLE users ADD COLUMN ${col} TEXT`).run();
+    }
+  }
+
   const spectacleFrameCols = db.prepare(`PRAGMA table_info(spectacle_frames)`).all().map(c => c.name);
   if (!spectacleFrameCols.includes('code')) {
     db.prepare('ALTER TABLE spectacle_frames ADD COLUMN code TEXT').run();
@@ -346,14 +358,14 @@ function init() {
   }
 
   // Add updated_at column to users if not present
-  const userCols = db.prepare(`PRAGMA table_info(users)`).all().map(c => c.name);
-  if (!userCols.includes('updated_at')) {
+  const existingUserCols = db.prepare(`PRAGMA table_info(users)`).all().map(c => c.name);
+  if (!existingUserCols.includes('updated_at')) {
     db.prepare(`ALTER TABLE users ADD COLUMN updated_at TEXT`).run();
     db.prepare(`UPDATE users SET updated_at = created_at WHERE updated_at IS NULL`).run();
   }
 
   // Add preorder_notification_opt_in column to users if not present
-  if (!userCols.includes('preorder_notification_opt_in')) {
+  if (!existingUserCols.includes('preorder_notification_opt_in')) {
     db.prepare(`ALTER TABLE users ADD COLUMN preorder_notification_opt_in INTEGER NOT NULL DEFAULT 0`).run();
   }
 

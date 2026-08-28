@@ -36,6 +36,11 @@ export default function AdminUsers() {
   const [editRole, setEditRole] = useState('');
   const [editNickname, setEditNickname] = useState('');
   const [editRealName, setEditRealName] = useState('');
+  const [editHomeAddress, setEditHomeAddress] = useState('');
+  const [editHomePhone, setEditHomePhone] = useState('');
+  const [editNextKinName, setEditNextKinName] = useState('');
+  const [editNextKinPhone, setEditNextKinPhone] = useState('');
+  const [editDepartment, setEditDepartment] = useState('');
   const [editMerchantName, setEditMerchantName] = useState('');
   const [vendors, setVendors] = useState([]);
   const [vendorSelectedId, setVendorSelectedId] = useState(null);
@@ -97,6 +102,11 @@ export default function AdminUsers() {
     setEditRole(u.role);
     setEditNickname(u.nickname || '');
     setEditRealName(u.real_name || '');
+    setEditHomeAddress(u.home_address || '');
+    setEditHomePhone(u.home_phone || '');
+    setEditNextKinName(u.next_kin_name || '');
+    setEditNextKinPhone(u.next_kin_phone || '');
+    setEditDepartment(u.department || '');
     setEditMerchantName((u.vendor_profile && u.vendor_profile.merchant_name) || '');
     const display = (u.vendor_profile && u.vendor_profile.merchant_name) || '';
     // try to match existing vendor user by display name
@@ -108,13 +118,27 @@ export default function AdminUsers() {
       is_admin: !!s.is_admin,
     }));
     setEditStaffs(staffs);
-    setEditInitial(JSON.stringify({ cc, local, role: u.role, nickname: u.nickname || '', real_name: u.real_name || '', merchant_name: (u.vendor_profile && u.vendor_profile.merchant_name) || '', staffs }));
+    setEditInitial(JSON.stringify({
+      cc,
+      local,
+      role: u.role,
+      nickname: u.nickname || '',
+      real_name: u.real_name || '',
+      home_address: u.home_address || '',
+      home_phone: u.home_phone || '',
+      next_kin_name: u.next_kin_name || '',
+      next_kin_phone: u.next_kin_phone || '',
+      department: u.department || '',
+      merchant_name: (u.vendor_profile && u.vendor_profile.merchant_name) || '',
+      staffs,
+    }));
     setErr('');
   };
 
   const cancelEdit = () => { setEditingId(null); setErr(''); setEditMerchantName(''); };
 
   const isVendorRole = (role) => !['consumer', 'admin', 'super_admin'].includes(role);
+  const isInternalRole = (role) => ['admin', 'staff', 'super_admin', 'platform_staff'].includes(role);
 
   const saveEdit = async (id) => {
     setSaving(true); setErr('');
@@ -125,6 +149,13 @@ export default function AdminUsers() {
         nickname: editNickname.trim(),
         real_name: editRealName.trim(),
       };
+      if (isInternalRole(editRole)) {
+        body.home_address = editHomeAddress.trim();
+        body.home_phone = editHomePhone.trim();
+        body.next_kin_name = editNextKinName.trim();
+        body.next_kin_phone = editNextKinPhone.trim();
+        body.department = editDepartment.trim();
+      }
       if (isVendorRole(editRole)) body.merchant_name = editMerchantName.trim() || undefined;
       if (isVendorRole(editRole)) body.staffs = editStaffs;
       await api(`/api/admin/users/${id}`, { method: 'PATCH', body });
@@ -163,7 +194,7 @@ export default function AdminUsers() {
         <button
           className="btn"
           style={{ width: 'auto', padding: '8px 14px' }}
-          onClick={() => navigate('/login?intent=register')}
+          onClick={() => navigate('/login?intent=register&internal_user_create=1')}
         >
           + {t('Add User')}
         </button>
@@ -223,6 +254,35 @@ export default function AdminUsers() {
                     {ALL_ROLES.map(r => <option key={r} value={r}>{t(ROLE_LABELS[r]) || r}</option>)}
                   </select>
                 </label>
+
+                {isInternalRole(editRole) && (
+                  <div style={{ marginTop: 8, display: 'grid', gap: 10 }}>
+                    <label className="field" style={{ marginBottom: 0 }}>
+                      {t('Name')}
+                      <ClearableInput value={editRealName} onChange={e => setEditRealName(e.target.value)} placeholder={t('Full name')} />
+                    </label>
+                    <label className="field" style={{ marginBottom: 0 }}>
+                      {t('Home Address')}
+                      <ClearableInput value={editHomeAddress} onChange={e => setEditHomeAddress(e.target.value)} placeholder={t('Home address')} />
+                    </label>
+                    <label className="field" style={{ marginBottom: 0 }}>
+                      {t('Home Phone')}
+                      <ClearableInput value={editHomePhone} onChange={e => setEditHomePhone(e.target.value)} placeholder={t('Home phone')} />
+                    </label>
+                    <label className="field" style={{ marginBottom: 0 }}>
+                      {t("Next Kin's Name")}
+                      <ClearableInput value={editNextKinName} onChange={e => setEditNextKinName(e.target.value)} placeholder={t("Next kin's name")} />
+                    </label>
+                    <label className="field" style={{ marginBottom: 0 }}>
+                      {t("Next Kin's Phone Number")}
+                      <ClearableInput value={editNextKinPhone} onChange={e => setEditNextKinPhone(e.target.value)} placeholder={t("Next kin's phone")} />
+                    </label>
+                    <label className="field" style={{ marginBottom: 0 }}>
+                      {t('Department')}
+                      <ClearableInput value={editDepartment} onChange={e => setEditDepartment(e.target.value)} placeholder={t('Department')} />
+                    </label>
+                  </div>
+                )}
 
                 {isVendorRole(editRole) && (
                   <div style={{ marginTop: 8 }}>
@@ -295,7 +355,19 @@ export default function AdminUsers() {
                 <button
                   className="btn"
                   style={{ flex: 1 }}
-                  disabled={saving || JSON.stringify({ cc: editCC, local: editLocal, role: editRole, nickname: editNickname, real_name: editRealName, staffs: editStaffs }) === editInitial}
+                  disabled={saving || JSON.stringify({
+                    cc: editCC,
+                    local: editLocal,
+                    role: editRole,
+                    nickname: editNickname,
+                    real_name: editRealName,
+                    home_address: editHomeAddress,
+                    home_phone: editHomePhone,
+                    next_kin_name: editNextKinName,
+                    next_kin_phone: editNextKinPhone,
+                    department: editDepartment,
+                    staffs: editStaffs,
+                  }) === editInitial}
                   onClick={() => saveEdit(u.id)}
                 >
                   {saving ? t('Saving…') : t('Save')}
@@ -312,6 +384,15 @@ export default function AdminUsers() {
                   <div className="muted" style={{ fontSize: 13 }}>{t('Name')}: {u.real_name}</div>
                 )}
                 <div className="muted" style={{ fontSize: 13 }}>{t('Category')}: {t(ROLE_LABELS[u.role]) || u.role}</div>
+                {isInternalRole(u.role) && (
+                  <>
+                    {u.home_address && <div className="muted" style={{ fontSize: 12 }}>{t('Home Address')}: {u.home_address}</div>}
+                    {u.home_phone && <div className="muted" style={{ fontSize: 12 }}>{t('Home Phone')}: {u.home_phone}</div>}
+                    {u.next_kin_name && <div className="muted" style={{ fontSize: 12 }}>{t("Next Kin's Name")}: {u.next_kin_name}</div>}
+                    {u.next_kin_phone && <div className="muted" style={{ fontSize: 12 }}>{t("Next Kin's Phone Number")}: {u.next_kin_phone}</div>}
+                    {u.department && <div className="muted" style={{ fontSize: 12 }}>{t('Department')}: {u.department}</div>}
+                  </>
+                )}
                 <div className="muted" style={{ fontSize: 12 }}>
                   Created: {fmtDate(u.created_at)} · Modified: {fmtDate(u.updated_at || u.created_at)}
                 </div>

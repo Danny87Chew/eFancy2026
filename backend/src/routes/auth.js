@@ -1,7 +1,7 @@
 const { nanoid } = require('nanoid');
 const db = require('../db');
 const { signToken } = require('../auth');
-const { PUBLIC_ROLES, VENDOR_ROLES } = require('../roles');
+const { PUBLIC_ROLES, INTERNAL_ROLES, VENDOR_ROLES } = require('../roles');
 
 const router = require('express').Router();
 
@@ -107,8 +107,20 @@ function isValidMobile(m) {
 }
 
 // POST /api/auth/otp/request { mobile, intent, role, vendor_info }
+function normalizeInternalProfile(profile) {
+  if (!profile || typeof profile !== 'object') return {};
+  return {
+    real_name: String(profile.real_name || '').trim() || null,
+    home_address: String(profile.home_address || '').trim() || null,
+    home_phone: String(profile.home_phone || '').trim() || null,
+    next_kin_name: String(profile.next_kin_name || '').trim() || null,
+    next_kin_phone: String(profile.next_kin_phone || '').trim() || null,
+    department: String(profile.department || '').trim() || null,
+  };
+}
+
 router.post('/otp/request', (req, res) => {
-  const { mobile, intent, role, vendor_info } = req.body || {};
+  const { mobile, intent, role, vendor_info, internal_profile } = req.body || {};
   if (!isValidMobile(mobile)) return res.status(400).json({ error: 'invalid_mobile' });
 
   let existing = db.prepare('SELECT id FROM users WHERE mobile = ?').get(mobile);
@@ -132,8 +144,14 @@ router.post('/otp/request', (req, res) => {
   if (intent === 'register' && existing) {
     return res.status(409).json({ error: 'user_already_exists' });
   }
-  if (intent === 'register' && role && !PUBLIC_ROLES.includes(role)) {
+  if (intent === 'register' && role && ![...PUBLIC_ROLES, ...INTERNAL_ROLES].includes(role)) {
     return res.status(400).json({ error: 'invalid_role' });
+  }
+  if (intent === 'register' && INTERNAL_ROLES.includes(role)) {
+    const profile = normalizeInternalProfile(internal_profile || {});
+    if (!profile.real_name || !profile.home_address || !profile.home_phone || !profile.next_kin_name || !profile.next_kin_phone || !profile.department) {
+      return res.status(400).json({ error: 'missing_internal_profile' });
+    }
   }
   if (intent === 'register' && isVendorRole(role)) {
     const err = validateVendorInfo(vendor_info);
@@ -153,7 +171,7 @@ router.post('/otp/request', (req, res) => {
 
 // POST /api/auth/otp/verify { mobile, code, intent, role, vendor_info }
 router.post('/otp/verify', (req, res) => {
-  const { mobile, code, intent, role, vendor_info } = req.body || {};
+  const { mobile, code, intent, role, vendor_info, internal_profile } = req.body || {};
   if (!isValidMobile(mobile) || !code) return res.status(400).json({ error: 'invalid_input' });
   const row = db
     .prepare(
@@ -187,8 +205,15 @@ router.post('/otp/verify', (req, res) => {
 
   let newRole = 'consumer';
   if (intent === 'register' && role) {
-    if (!PUBLIC_ROLES.includes(role)) return res.status(400).json({ error: 'invalid_role' });
+    if (![...PUBLIC_ROLES, ...INTERNAL_ROLES].includes(role)) return res.status(400).json({ error: 'invalid_role' });
     newRole = role;
+  }
+
+  if (intent === 'register' && INTERNAL_ROLES.includes(newRole)) {
+    const profile = normalizeInternalProfile(internal_profile || {});
+    if (!profile.real_name || !profile.home_address || !profile.home_phone || !profile.next_kin_name || !profile.next_kin_phone || !profile.department) {
+      return res.status(400).json({ error: 'missing_internal_profile' });
+    }
   }
 
   if (intent === 'register' && isVendorRole(newRole)) {
@@ -201,9 +226,10 @@ router.post('/otp/verify', (req, res) => {
   if (!user) {
     const userCode = 'U' + nanoid(8).toUpperCase();
     const preorderOptIn = newRole === 'consumer' ? 1 : 0;
+    const internalProfile = INTERNAL_ROLES.includes(newRole) ? normalizeInternalProfile(internal_profile || {}) : {};
     const info = db
-      .prepare('INSERT INTO users (user_code, mobile, role, preorder_notification_opt_in) VALUES (?, ?, ?, ?)')
-      .run(userCode, mobile, newRole, preorderOptIn);
+      .prepare('INSERT INTO users (user_code, mobile, role, preorder_notification_opt_in, real_name, home_address, home_phone, next_kin_name, next_kin_phone, department) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(userCode, mobile, newRole, preorderOptIn, internalProfile.real_name, internalProfile.home_address, internalProfile.home_phone, internalProfile.next_kin_name, internalProfile.next_kin_phone, internalProfile.department);
     user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
 
     if (isVendorRole(newRole)) {

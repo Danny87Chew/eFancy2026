@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../state/AuthContext.jsx';
 import { api } from '../api';
-import { PUBLIC_ROLES, ROLE_LABELS } from '../roles';
+import { INTERNAL_ROLES, PUBLIC_ROLES, ROLE_LABELS } from '../roles';
 import PhoneInput, { DEFAULT_CODE } from '../components/PhoneInput.jsx';
 import LanguageSelector from '../components/LanguageSelector.jsx';
 import AdminVendorCreate from './admin/AdminVendorCreate.jsx';
@@ -55,6 +55,14 @@ function Login() {
     business_licence: '',
     staff_mobiles: [],
   });
+  const [internalProfile, setInternalProfile] = useState({
+    real_name: '',
+    home_address: '',
+    home_phone: '',
+    next_kin_name: '',
+    next_kin_phone: '',
+    department: '',
+  });
   
   const [vendorHours, setVendorHours] = useState(createEmptyHours());
   const [vendorAllDays, setVendorAllDays] = useState(false);
@@ -74,7 +82,10 @@ function Login() {
   };
   const mobileValid = isValidMobile(mobile);
 
-  const isVendor = role !== 'consumer';
+  const isInternalUserCreate = new URLSearchParams(location.search).get('internal_user_create') === '1';
+  const selectableRoles = isInternalUserCreate ? INTERNAL_ROLES : PUBLIC_ROLES;
+  const isInternalRoleSelected = INTERNAL_ROLES.includes(role);
+  const isVendor = !!role && PUBLIC_ROLES.includes(role) && role !== 'consumer';
 
   function OTPBoxes({ value, onChange }) {
     const inputs = React.useRef([]);
@@ -159,7 +170,10 @@ function Login() {
       const r = qp.get('role');
       if (i === 'register' && !sent) {
         setPickingRole(true);
-        if (r) setRole(r);
+        if (isInternalUserCreate) {
+          setRole((prev) => (INTERNAL_ROLES.includes(prev) ? prev : 'admin'));
+        }
+        if (r && selectableRoles.includes(r)) setRole(r);
       }
     } catch (e) {
       // ignore
@@ -199,7 +213,8 @@ function Login() {
     setBusy(true);
     try {
       const info = which === 'register' && isVendor ? { ...vendorInfo, business_hours: toOpeningTimeText(vendorHours) } : undefined;
-      const r = await requestOtp(mobile, which, which === 'register' ? role : undefined, info);
+      const internalInfo = which === 'register' && isInternalUserCreate && isInternalRoleSelected ? internalProfile : undefined;
+      const r = await requestOtp(mobile, which, which === 'register' ? role : undefined, info, internalInfo);
       setIntent(which);
       setSent(true);
       setOtpCycle((prev) => prev + 1);
@@ -222,7 +237,8 @@ function Login() {
     setBusy(true);
     try {
       const info = intent === 'register' && isVendor ? vendorInfo : undefined;
-      const d = await verifyOtp(mobile, code, intent, intent === 'register' ? role : undefined, info);
+      const internalInfo = intent === 'register' && isInternalUserCreate && isInternalRoleSelected ? internalProfile : undefined;
+      const d = await verifyOtp(mobile, code, intent, intent === 'register' ? role : undefined, info, internalInfo);
       const effectiveRole = d.vendor_context?.role || d.user?.role;
       
       // For consumer registration, show address setup step
@@ -308,6 +324,10 @@ function Login() {
         : Object.values(vendorHours).some(({ open, close }) => open && close)
     )
   );
+  const internalFieldsComplete = !isInternalUserCreate || !isInternalRoleSelected || (
+    ['real_name', 'home_address', 'home_phone', 'next_kin_name', 'next_kin_phone', 'department']
+      .every((k) => internalProfile[k] && String(internalProfile[k]).trim() !== '')
+  );
 
   return (
     <div style={{ paddingTop: 24 }}>
@@ -369,13 +389,41 @@ function Login() {
           <label className="field">
             {t('I am a…')}
             <select value={role} onChange={(e) => setRole(e.target.value)}>
-              {PUBLIC_ROLES.map((r) => (
+              {selectableRoles.map((r) => (
                     <option key={r} value={r}>
                       {t(ROLE_LABELS[r])}
                     </option>
                   ))}
             </select>
           </label>
+          {isInternalRoleSelected && isInternalUserCreate && (
+            <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+              <label className="field">
+                {t('Name')}
+                <input value={internalProfile.real_name} onChange={(e) => setInternalProfile((prev) => ({ ...prev, real_name: e.target.value }))} />
+              </label>
+              <label className="field">
+                {t('Home Address')}
+                <input value={internalProfile.home_address} onChange={(e) => setInternalProfile((prev) => ({ ...prev, home_address: e.target.value }))} />
+              </label>
+              <label className="field">
+                {t('Home Phone')}
+                <input value={internalProfile.home_phone} onChange={(e) => setInternalProfile((prev) => ({ ...prev, home_phone: e.target.value }))} />
+              </label>
+              <label className="field">
+                {t("Next Kin's Name")}
+                <input value={internalProfile.next_kin_name} onChange={(e) => setInternalProfile((prev) => ({ ...prev, next_kin_name: e.target.value }))} />
+              </label>
+              <label className="field">
+                {t("Next Kin's Phone Number")}
+                <input value={internalProfile.next_kin_phone} onChange={(e) => setInternalProfile((prev) => ({ ...prev, next_kin_phone: e.target.value }))} />
+              </label>
+              <label className="field">
+                {t('Department')}
+                <input value={internalProfile.department} onChange={(e) => setInternalProfile((prev) => ({ ...prev, department: e.target.value }))} />
+              </label>
+            </div>
+          )}
           {isVendor && (
             <AdminVendorCreate
               selfMode
@@ -456,7 +504,7 @@ function Login() {
             <button className="btn secondary" style={{ width: '60%', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em' }} onClick={() => setPickingRole(false)}>
               {t('Back')}
             </button>
-            <button className="btn secondary" style={{ fontWeight: 700, width: '60%', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em' }} onClick={() => send('register')} disabled={busy || !mobileValid || !vendorFieldsComplete}>
+            <button className="btn secondary" style={{ fontWeight: 700, width: '60%', padding: '10px 12px', borderRadius: '12px', fontSize: '1.05em' }} onClick={() => send('register')} disabled={busy || !mobileValid || !vendorFieldsComplete || !internalFieldsComplete}>
               {t('Send OTP To Register')} {t('Send OTP To Register as')} {t(ROLE_LABELS[role])}
             </button>
           </div>

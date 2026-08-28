@@ -19,11 +19,11 @@ export function AuthProvider({ children }) {
     }).finally(() => setLoading(false));
   }, []);
 
-  const requestOtp = useCallback((mobile, intent, role, vendor_info) =>
-    api('/api/auth/otp/request', { method: 'POST', body: { mobile, intent, role, vendor_info } }), []);
+  const requestOtp = useCallback((mobile, intent, role, vendor_info, internal_profile) =>
+    api('/api/auth/otp/request', { method: 'POST', body: { mobile, intent, role, vendor_info, internal_profile } }), []);
 
-  const verifyOtp = useCallback(async (mobile, code, intent, role, vendor_info) => {
-    const d = await api('/api/auth/otp/verify', { method: 'POST', body: { mobile, code, intent, role, vendor_info } });
+  const verifyOtp = useCallback(async (mobile, code, intent, role, vendor_info, internal_profile) => {
+    const d = await api('/api/auth/otp/verify', { method: 'POST', body: { mobile, code, intent, role, vendor_info, internal_profile } });
     localStorage.setItem('efancy_token', d.token);
     setUser(d.user);
     setVendorContext(d.vendor_context || null);

@@ -39,6 +39,7 @@ function OrderDetails({ order, allOrders, refresh }) {
   }, [order.id, order.comments, order.items]);
 
   const canManagePrepared = Boolean(user && ['admin', 'super_admin', 'staff', 'platform_staff'].includes(user.role));
+  const canViewOrderPricing = !(user && ['staff', 'platform_staff'].includes(user.role));
 
   const togglePrepared = async (itemId, currentPrepared) => {
     if (!canManagePrepared) return;
@@ -301,7 +302,7 @@ function OrderDetails({ order, allOrders, refresh }) {
       )}
       <div className="muted" style={{ marginBottom: 6 }} onClick={(e) => e.stopPropagation()}>
         {t('Created')}: {order.created_at} {order.paid_at ? `· ${t('Paid')}: ${order.paid_at}` : ''}
-        {pricing && pricing.base_total != null && pricing.promo_total != null && Number(pricing.base_total) !== Number(pricing.promo_total) && (
+        {canViewOrderPricing && pricing && pricing.base_total != null && pricing.promo_total != null && Number(pricing.base_total) !== Number(pricing.promo_total) && (
           <div style={{ marginTop: 6 }}>
             <div style={{ color: 'var(--muted)' }}>{t('Base total')}</div>
             <div style={{ textDecoration: 'line-through' }}>{fmt(Number(pricing.base_total))}</div>
@@ -330,7 +331,7 @@ function OrderDetails({ order, allOrders, refresh }) {
           )}
         </div>
       )}
-      {order.status === 'PendingForBid' && (
+      {order.status === 'PendingForBid' && canViewOrderPricing && (
         <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 16, fontWeight: 700, color: '#000' }}>{t('Vendor Offered')}</span>
           <strong style={{ fontSize: 16, color: '#000' }}>{fmt(Number(order.meta?.vendor_price ?? 0))}</strong>
@@ -384,7 +385,7 @@ function OrderDetails({ order, allOrders, refresh }) {
           {eyesight.pd != null && <div style={{ marginTop: 4, fontWeight: 700 }}>{t('Pupil Distance')}: <strong>{eyesight.pd}</strong></div>}
         </div>
       )}
-      {isSupp && displayOrder.payments && displayOrder.payments.length > 0 && (
+      {isSupp && displayOrder.payments && displayOrder.payments.length > 0 && canViewOrderPricing && (
         <div style={{ marginBottom: 6 }}>
           <div className="label" style={{ fontSize: 11 }}>{t('ORIGINAL PAYMENT')}</div>
           {displayOrder.payments.map(p => (
@@ -409,7 +410,7 @@ function OrderDetails({ order, allOrders, refresh }) {
               const displayCutting = cutting && cutting !== 'Standard' ? cutting : null;
               const itemName = it.kind === 'frame' ? (it.label || 'Frame') : it.kind === 'lens' ? `${t('Lens')}: ${it.label || 'Lens'}` : (it.label || 'Item');
               const qtyLabel = Number(it.qty || 1) > 1 ? ` × ${it.qty}` : '';
-              const priceLabel = it.unit_price != null ? ` • ${fmt(Number(it.unit_price) * Number(it.qty || 1))}` : '';
+              const priceLabel = canViewOrderPricing && it.unit_price != null ? ` • ${fmt(Number(it.unit_price) * Number(it.qty || 1))}` : '';
               const isPrepared = !!Number(it.prepared || 0);
               return (
                 <li
@@ -442,7 +443,7 @@ function OrderDetails({ order, allOrders, refresh }) {
                       {displayCutting ? <span> • <span style={{ fontWeight: 800 }}>Cutting:</span> <span style={{ fontWeight: 800, fontStyle: 'italic' }}>{t(displayCutting) || displayCutting}</span></span> : null}
                       {priceLabel}
                     </span>
-                    {showCrossed ? (
+                    {canViewOrderPricing && showCrossed ? (
                       <div style={{ fontSize: 14, marginTop: 2 }}>
                         <span style={{ textDecoration: 'line-through', color: 'var(--muted)', marginRight: 8 }}>{fmt(baseUnit)}</span>
                         <span style={{ fontWeight: 700 }}>{fmt(promoUnit)}</span>
@@ -455,7 +456,7 @@ function OrderDetails({ order, allOrders, refresh }) {
           </ol>
         </div>
       )}
-      {order.payments && order.payments.length > 0 && (
+      {canViewOrderPricing && order.payments && order.payments.length > 0 && (
         <div style={{ marginTop: 18 }}>
           <div className="label" style={{ fontSize: 13, fontWeight: 700 }}>{t('PAYMENTS')}</div>
           {order.payments.map(p => (
@@ -616,7 +617,6 @@ export default function AdminOrders() {
 
     const html = ordersToPrint.map((order) => {
       const orderItems = Array.isArray(order.items) ? order.items : [];
-      const orderPayments = Array.isArray(order.payments) ? order.payments : [];
       const total = Number(order.total || 0);
       const userName = [order.user_real_name || order.user_nickname, order.user_mobile].filter(Boolean).join(' • ');
       const fallbackUser = order.user_id != null ? `#${order.user_id}` : '—';
@@ -632,18 +632,6 @@ export default function AdminOrders() {
         </div>
       ` : '';
       const itemsHtml = orderItems.map((item, index) => `<div style="margin-bottom:8px; font-size:17px;">${makeItemText(item, index)}</div>`).join('');
-      const paymentsHtml = vendorOnly ? '' : orderPayments.length ? orderPayments.map((payment) => `
-        <div style="display:flex; justify-content:space-between; gap:12px; margin-bottom:6px;">
-          <span>${payment.method || 'Payment'} · ${payment.status || ''}</span>
-          <span>${formatPrintMoney(payment.amount || 0)}</span>
-        </div>
-      `).join('') : '<div>No payment info.</div>';
-      const totalHtml = vendorOnly ? '' : `
-        <div style="display:flex; justify-content:space-between; gap:12px; font-weight:700; margin-top:12px; border-top:1px solid #d1d5db; padding-top:8px;">
-          <span>Total</span>
-          <span>${formatPrintMoney(total)}</span>
-        </div>
-      `;
 
       return vendorOnly ? `
         <section style="border:1px solid #d1d5db; border-radius:10px; padding:18px; margin:0 0 18px 0; font-size:20px; line-height:1.5;">
@@ -662,8 +650,6 @@ export default function AdminOrders() {
           ${deliveryAddressHtml || ''}
           <div style="font-size:24px; font-weight:800; margin:10px 0 8px 0;">ITEMS</div>
           <div style="margin-bottom:12px; font-size:17px;">${itemsHtml || '<div>No items.</div>'}</div>
-          ${paymentsHtml ? `<div style="font-size:17px; font-weight:700; margin:10px 0 8px 0;">PAYMENTS</div><div>${paymentsHtml}</div>` : ''}
-          ${totalHtml}
         </section>
       `;
     }).join('');
@@ -974,6 +960,7 @@ export default function AdminOrders() {
         const userName = [o.user_real_name || o.user_nickname, o.user_mobile].filter(Boolean).join(' • ');
         const fallbackUser = o.user_id != null ? `#${o.user_id}` : 'Unknown user';
         const displayUser = userName || fallbackUser;
+        const visibleTotal = isStaff ? '—' : fmt(o.total);
         return (
           <div key={o.id} className="card">
             <div style={{ display: 'flex', alignItems: 'stretch', gap: 10 }}>
@@ -999,7 +986,7 @@ export default function AdminOrders() {
                       <span style={{ color: 'var(--muted)', fontSize: 12 }}>{expandedId === o.id ? '▲' : '▼'}</span>
                     </div>
                   </div>
-                  <div className="muted" style={{ marginTop: 2, lineHeight: 1.3 }}>{o.module} · {fmt(o.total)} · {displayUser}</div>
+                  <div className="muted" style={{ marginTop: 2, lineHeight: 1.3 }}>{o.module} · {visibleTotal} · {displayUser}</div>
                 </div>
               </div>
             </div>

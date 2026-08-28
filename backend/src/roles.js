@@ -13,6 +13,7 @@ const PUBLIC_ROLES = [
 
 const ADMIN_ROLES = ['admin', 'super_admin'];
 const STAFF_ROLES = ['staff', 'platform_staff'];
+const INTERNAL_ROLES = ['admin', 'staff', 'super_admin', 'platform_staff'];
 
 const VENDOR_ROLES = [
   'service_vendor',
@@ -43,4 +44,4 @@ const ROLE_LABELS = {
   platform_staff: 'Platform Staff',
 };
 
-module.exports = { PUBLIC_ROLES, ADMIN_ROLES, STAFF_ROLES, VENDOR_ROLES, ALL_ROLES, ROLE_LABELS };
+module.exports = { PUBLIC_ROLES, ADMIN_ROLES, STAFF_ROLES, INTERNAL_ROLES, VENDOR_ROLES, ALL_ROLES, ROLE_LABELS };
